@@ -358,25 +358,6 @@ export default function HeartsAcrossBordersPage() {
         </div>
       </section>
 
-      {/* ── Founder Bio ── */}
-      <section className="py-20" style={{ background: "#EFF6FF" }}>
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <span className="text-xs font-semibold tracking-widest uppercase text-blue-500 mb-3 block">
-              Meet the Visionary
-            </span>
-            <h2
-              className="text-3xl md:text-4xl font-bold"
-              style={{ fontFamily: "Georgia, serif", color: "#1E3A5F" }}
-            >
-              Founder&apos;s Message
-            </h2>
-            <div className="w-12 h-1 rounded-full mx-auto mt-4" style={{ background: "linear-gradient(90deg, #2563EB, #0891B2)" }} />
-          </div>
-          <FounderBioCard />
-        </div>
-      </section>
-
       {/* ── About Initiative ── */}
       <section
         className="py-20 relative overflow-hidden"
@@ -425,6 +406,25 @@ export default function HeartsAcrossBordersPage() {
               <ContactCard key={i} member={member} index={i} />
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Founder Bio (bottom) ── */}
+      <section className="py-20" style={{ background: "#EFF6FF" }}>
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <span className="text-xs font-semibold tracking-widest uppercase text-blue-500 mb-3 block">
+              Meet the Visionary
+            </span>
+            <h2
+              className="text-3xl md:text-4xl font-bold"
+              style={{ fontFamily: "Georgia, serif", color: "#1E3A5F" }}
+            >
+              Founder&apos;s Message
+            </h2>
+            <div className="w-12 h-1 rounded-full mx-auto mt-4" style={{ background: "linear-gradient(90deg, #2563EB, #0891B2)" }} />
+          </div>
+          <FounderBioCard />
         </div>
       </section>
 
