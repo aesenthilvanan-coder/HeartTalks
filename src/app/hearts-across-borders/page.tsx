@@ -75,13 +75,18 @@ function GlobeCanvas() {
     if (!ctx) return;
 
     let W = 0, H = 0;
-    const resize = () => {
-      W = canvas.width  = canvas.offsetWidth;
-      H = canvas.height = canvas.offsetHeight;
+    const measure = () => {
+      /* Use the parent section's actual size, not the canvas CSS size,
+         because h-full on an abs-positioned canvas may resolve to 0
+         before the parent establishes a concrete height. */
+      const parent = canvas.parentElement;
+      W = (parent ? parent.offsetWidth  : 0) || window.innerWidth  || 800;
+      H = (parent ? parent.offsetHeight : 0) || window.innerHeight || 600;
+      canvas.width  = W;
+      canvas.height = H;
     };
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
+    const ro = new ResizeObserver(measure);
+    ro.observe(canvas.parentElement ?? canvas);
 
     /* ── Static background stars ── */
     const STARS = Array.from({ length: 260 }, () => ({
@@ -275,13 +280,16 @@ function GlobeCanvas() {
       aid = requestAnimationFrame(frame);
     };
 
-    /* stagger initial connections */
-    const t0 = T0;
-    setTimeout(() => spawnConn(performance.now() - t0),  200);
-    setTimeout(() => spawnConn(performance.now() - t0), 1400);
-    setTimeout(() => spawnConn(performance.now() - t0), 2800);
+    /* Start loop only after first proper measure on next frame */
+    requestAnimationFrame(() => {
+      measure();
+      const t0 = T0;
+      setTimeout(() => spawnConn(performance.now() - t0),  200);
+      setTimeout(() => spawnConn(performance.now() - t0), 1400);
+      setTimeout(() => spawnConn(performance.now() - t0), 2800);
+      aid = requestAnimationFrame(frame);
+    });
 
-    aid = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(aid); ro.disconnect(); };
   }, []);
 
@@ -492,7 +500,7 @@ export default function HeartsAcrossBordersPage() {
             }}
           >
             {[
-              { label: "12 Cities", icon: "🌍" },
+              { label: "Global Reach", icon: "🌍" },
               { label: "6-Member Team", icon: "❤️" },
               { label: "Active Now", icon: "⚡" },
             ].map((chip) => (
