@@ -76,7 +76,16 @@ export default function Footer() {
           style={{ borderTop: "1px solid rgba(255,255,255,0.07)", color: "var(--gray-600)" }}
         >
           <span>© {new Date().getFullYear()} HeartTalks. All rights reserved.</span>
-          <span>Made with ❤️ for healthier communities</span>
+          <span>
+            Made with ❤️ for healthier communities &nbsp;·&nbsp;{" "}
+            <a
+              href="mailto:aesenthilvanan@gmail.com"
+              className="transition-colors duration-150 hover:text-white"
+              style={{ color: "var(--gray-500)" }}
+            >
+              Website by Aaryan Senthilvanan
+            </a>
+          </span>
         </div>
       </div>
     </footer>
