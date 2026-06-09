@@ -1,26 +1,191 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-ht-50: #EFF6FF;
+  --color-ht-100: #DBEAFE;
+  --color-ht-200: #BFDBFE;
+  --color-ht-300: #93C5FD;
+  --color-ht-400: #60A5FA;
+  --color-ht-500: #3B82F6;
+  --color-ht-600: #2563EB;
+  --color-ht-700: #1D4ED8;
+  --color-ht-800: #1E40AF;
+  --color-ht-900: #1E3A8A;
+  --color-ht-navy: #1E3A5F;
+  --color-ht-teal: #0891B2;
+  --font-display: "Playfair Display", Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #EFF6FF;
+  color: #1E3A5F;
+  font-family: var(--font-geist-sans), "Inter", system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ─── Floating Hearts ─────────────────────────────────── */
+@keyframes floatHeart {
+  0%   { transform: translateY(0) scale(1) rotate(0deg); opacity: 0.4; }
+  30%  { opacity: 0.7; }
+  70%  { opacity: 0.3; }
+  100% { transform: translateY(-110vh) scale(0.5) rotate(20deg); opacity: 0; }
+}
+
+@keyframes floatHeartSide {
+  0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0.35; }
+  50%  { transform: translateY(-40vh) translateX(20px) scale(0.85); opacity: 0.5; }
+  100% { transform: translateY(-100vh) translateX(-10px) scale(0.4); opacity: 0; }
+}
+
+/* ─── EKG Line ────────────────────────────────────────── */
+@keyframes ekgSweep {
+  0%   { stroke-dashoffset: 1000; opacity: 1; }
+  80%  { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0.6; }
+}
+
+@keyframes ekgGlow {
+  0%, 100% { filter: drop-shadow(0 0 3px #93C5FD); }
+  50%       { filter: drop-shadow(0 0 12px #60A5FA) drop-shadow(0 0 20px #3B82F6); }
+}
+
+/* ─── Heartbeat Pulse ─────────────────────────────────── */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  15%       { transform: scale(1.15); }
+  30%       { transform: scale(1); }
+  45%       { transform: scale(1.08); }
+  60%       { transform: scale(1); }
+}
+
+/* ─── Shimmer ─────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ─── Wave ────────────────────────────────────────────── */
+@keyframes waveFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* ─── Gradient Shift ──────────────────────────────────── */
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ─── Orb float ───────────────────────────────────────── */
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(30px, -20px) scale(1.05); }
+  66%       { transform: translate(-20px, 15px) scale(0.96); }
+}
+
+/* ─── Text reveal ─────────────────────────────────────── */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes revealLeft {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── Watermark ───────────────────────────────────────── */
+.watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.035;
+  pointer-events: none;
+  z-index: 0;
+  width: 60vw;
+  max-width: 700px;
+}
+
+/* ─── EKG Container ───────────────────────────────────── */
+.ekg-line {
+  stroke-dasharray: 1000;
+  animation: ekgSweep 3s ease-in-out infinite, ekgGlow 2s ease-in-out infinite;
+}
+
+/* ─── Hero Background ─────────────────────────────────── */
+.hero-bg {
+  background: linear-gradient(135deg, #DBEAFE 0%, #EFF6FF 30%, #BFDBFE 60%, #93C5FD 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* ─── Card hover ──────────────────────────────────────── */
+.contact-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.contact-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(30, 64, 175, 0.15);
+}
+
+.circle-card {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
+}
+.circle-card:hover {
+  transform: translateY(-10px) scale(1.04);
+  box-shadow: 0 24px 48px rgba(59, 130, 246, 0.25);
+}
+
+/* ─── Gradient text ───────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #1E40AF 0%, #0891B2 50%, #1E40AF 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ─── Section fade-in on scroll ───────────────────────── */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.scroll-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── Navbar glass ────────────────────────────────────── */
+.navbar-glass {
+  background: rgba(239, 246, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(147, 197, 253, 0.3);
+}
+
+/* ─── Wave SVG bottom of hero ─────────────────────────── */
+.wave-bottom {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
 }
