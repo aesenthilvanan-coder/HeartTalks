@@ -1,111 +1,50 @@
 @import "tailwindcss";
 
-@theme {
-  --color-ht-50: #EFF6FF;
-  --color-ht-100: #DBEAFE;
-  --color-ht-200: #BFDBFE;
-  --color-ht-300: #93C5FD;
-  --color-ht-400: #60A5FA;
-  --color-ht-500: #3B82F6;
-  --color-ht-600: #2563EB;
-  --color-ht-700: #1D4ED8;
-  --color-ht-800: #1E40AF;
-  --color-ht-900: #1E3A8A;
-  --color-ht-navy: #1E3A5F;
-  --color-ht-teal: #0891B2;
-  --font-display: "Playfair Display", Georgia, serif;
+/* ─── Design tokens ──────────────────────────────────── */
+:root {
+  --white:      #ffffff;
+  --gray-50:    #F9FAFB;
+  --gray-100:   #F3F4F6;
+  --gray-200:   #E5E7EB;
+  --gray-400:   #9CA3AF;
+  --gray-600:   #4B5563;
+  --gray-800:   #1F2937;
+  --gray-900:   #111827;
+
+  --blue-50:    #EFF6FF;
+  --blue-100:   #DBEAFE;
+  --blue-200:   #BFDBFE;
+  --blue-400:   #60A5FA;
+  --blue-600:   #2563EB;
+  --blue-700:   #1D4ED8;
+  --blue-800:   #1E40AF;
+  --navy:       #1E3A5F;
+
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.05);
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
+/* ─── Reset / Base ───────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 
 body {
-  background: #EFF6FF;
-  color: #1E3A5F;
-  font-family: var(--font-geist-sans), "Inter", system-ui, sans-serif;
+  background: var(--white);
+  color: var(--gray-900);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  line-height: 1.6;
 }
 
-/* ─── Floating Hearts ─────────────────────────────────── */
-@keyframes floatHeart {
-  0%   { transform: translateY(0) scale(1) rotate(0deg); opacity: 0.4; }
-  30%  { opacity: 0.7; }
-  70%  { opacity: 0.3; }
-  100% { transform: translateY(-110vh) scale(0.5) rotate(20deg); opacity: 0; }
-}
-
-@keyframes floatHeartSide {
-  0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0.35; }
-  50%  { transform: translateY(-40vh) translateX(20px) scale(0.85); opacity: 0.5; }
-  100% { transform: translateY(-100vh) translateX(-10px) scale(0.4); opacity: 0; }
-}
-
-/* ─── EKG Line ────────────────────────────────────────── */
-@keyframes ekgSweep {
-  0%   { stroke-dashoffset: 1000; opacity: 1; }
-  80%  { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 0.6; }
-}
-
-@keyframes ekgGlow {
-  0%, 100% { filter: drop-shadow(0 0 3px #93C5FD); }
-  50%       { filter: drop-shadow(0 0 12px #60A5FA) drop-shadow(0 0 20px #3B82F6); }
-}
-
-/* ─── Heartbeat Pulse ─────────────────────────────────── */
-@keyframes heartbeat {
-  0%, 100% { transform: scale(1); }
-  15%       { transform: scale(1.15); }
-  30%       { transform: scale(1); }
-  45%       { transform: scale(1.08); }
-  60%       { transform: scale(1); }
-}
-
-/* ─── Shimmer ─────────────────────────────────────────── */
-@keyframes shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-/* ─── Wave ────────────────────────────────────────────── */
-@keyframes waveFloat {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-8px); }
-}
-
-/* ─── Gradient Shift ──────────────────────────────────── */
-@keyframes gradientShift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* ─── Orb float ───────────────────────────────────────── */
-@keyframes orbFloat {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%       { transform: translate(30px, -20px) scale(1.05); }
-  66%       { transform: translate(-20px, 15px) scale(0.96); }
-}
-
-/* ─── Text reveal ─────────────────────────────────────── */
-@keyframes revealUp {
-  from { opacity: 0; transform: translateY(40px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes revealLeft {
-  from { opacity: 0; transform: translateX(-40px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+/* ─── Hero background (subtle) ───────────────────────── */
+.hero-bg {
+  background: linear-gradient(160deg, #EFF6FF 0%, #DBEAFE 40%, #EFF6FF 100%);
 }
 
 /* ─── Watermark ───────────────────────────────────────── */
@@ -114,78 +53,120 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  opacity: 0.035;
+  opacity: 0.025;
   pointer-events: none;
   z-index: 0;
-  width: 60vw;
-  max-width: 700px;
+  width: 55vw;
+  max-width: 640px;
 }
 
-/* ─── EKG Container ───────────────────────────────────── */
-.ekg-line {
-  stroke-dasharray: 1000;
-  animation: ekgSweep 3s ease-in-out infinite, ekgGlow 2s ease-in-out infinite;
+/* ─── Navbar ──────────────────────────────────────────── */
+.navbar-glass {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--gray-200);
 }
 
-/* ─── Hero Background ─────────────────────────────────── */
-.hero-bg {
-  background: linear-gradient(135deg, #DBEAFE 0%, #EFF6FF 30%, #BFDBFE 60%, #93C5FD 100%);
-  background-size: 400% 400%;
-  animation: gradientShift 8s ease infinite;
+/* ─── Keyframes ───────────────────────────────────────── */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.12); }
+  28%       { transform: scale(1); }
+  42%       { transform: scale(1.06); }
+  56%       { transform: scale(1); }
 }
 
-/* ─── Card hover ──────────────────────────────────────── */
-.contact-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.contact-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 20px 40px rgba(30, 64, 175, 0.15);
+@keyframes floatUp {
+  0%   { transform: translateY(0) scale(1); opacity: 0.5; }
+  100% { transform: translateY(-100vh) scale(0.6); opacity: 0; }
 }
 
-.circle-card {
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
-}
-.circle-card:hover {
-  transform: translateY(-10px) scale(1.04);
-  box-shadow: 0 24px 48px rgba(59, 130, 246, 0.25);
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Gradient text ───────────────────────────────────── */
-.gradient-text {
-  background: linear-gradient(135deg, #1E40AF 0%, #0891B2 50%, #1E40AF 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmer 3s linear infinite;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-/* ─── Section fade-in on scroll ───────────────────────── */
-.scroll-reveal {
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(6px); }
+}
+
+/* ─── Scroll reveal ───────────────────────────────────── */
+.reveal {
   opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.8s ease, transform 0.8s ease;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
 }
-.scroll-reveal.visible {
+.reveal.visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-/* ─── Navbar glass ────────────────────────────────────── */
-.navbar-glass {
-  background: rgba(239, 246, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(147, 197, 253, 0.3);
+/* ─── Contact card hover ──────────────────────────────── */
+.contact-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  cursor: default;
+}
+.contact-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
-/* ─── Wave SVG bottom of hero ─────────────────────────── */
-.wave-bottom {
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 100%;
-  overflow: hidden;
-  line-height: 0;
+/* ─── Button base ─────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: var(--blue-600);
+  border: 1px solid var(--blue-700);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  text-decoration: none;
+}
+.btn-primary:hover {
+  background: var(--blue-700);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-800);
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  text-decoration: none;
+}
+.btn-secondary:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+  transform: translateY(-1px);
+}
+
+/* ─── Section divider ─────────────────────────────────── */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--gray-200);
+  margin: 0;
 }

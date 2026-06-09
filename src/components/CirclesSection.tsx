@@ -2,128 +2,92 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const circles = [
+const pillars = [
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-10 h-10">
-        <path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z" />
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
     ),
-    label: "Heart Education",
-    desc: "Learn about cardiovascular mechanisms, heart diseases, and how your lifestyle shapes your heart health.",
-    color: "#EF4444",
+    color: "#DC2626",
     bg: "#FEF2F2",
+    label: "Heart Education",
+    desc: "Age-appropriate lectures on cardiovascular disease, risk factors, and the science behind a healthy heart.",
   },
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-10 h-10">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
-    label: "Community Outreach",
-    desc: "We host lectures, workshops, and events for all age groups to raise awareness of cardiovascular well-being.",
-    color: "#10B981",
+    color: "#059669",
     bg: "#ECFDF5",
+    label: "Community Outreach",
+    desc: "Events, workshops, and partnerships that bring cardiovascular health awareness directly to communities.",
   },
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-10 h-10">
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-        <line x1="12" y1="8" x2="12" y2="16" />
-        <line x1="8" y1="12" x2="16" y2="12" />
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
       </svg>
     ),
-    label: "Equipment Donation",
-    desc: "Collecting vital cardiovascular equipment distributed to hospitals and health organizations serving marginalized communities.",
-    color: "#3B82F6",
+    color: "#2563EB",
     bg: "#EFF6FF",
+    label: "Equipment Donation",
+    desc: "Collecting and distributing vital cardiovascular equipment to hospitals serving marginalized communities.",
   },
   {
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-10 h-10">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="2" y1="12" x2="22" y2="12" />
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" />
         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
       </svg>
     ),
-    label: "Global Impact",
-    desc: "Bridging the gap in cardiovascular healthcare across local and international communities around the world.",
-    color: "#8B5CF6",
+    color: "#7C3AED",
     bg: "#F5F3FF",
+    label: "Global Impact",
+    desc: "Bridging cardiovascular healthcare gaps across local and international communities worldwide.",
   },
 ];
 
-function CircleCard({
-  circle,
-  index,
-}: {
-  circle: (typeof circles)[0];
-  index: number;
-}) {
+function PillarCard({ item, index }: { item: (typeof pillars)[0]; index: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.2 }
+    const ob = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); ob.disconnect(); } },
+      { threshold: 0.15 }
     );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    if (ref.current) ob.observe(ref.current);
+    return () => ob.disconnect();
   }, []);
 
   return (
     <div
       ref={ref}
-      className="circle-card flex flex-col items-center text-center"
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0) scale(1)" : "translateY(60px) scale(0.85)",
-        transition: `opacity 0.7s ease ${index * 0.15}s, transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${index * 0.15}s`,
+        transform: visible ? "translateY(0)" : "translateY(16px)",
+        transition: `opacity 0.5s ease ${index * 0.08}s, transform 0.5s ease ${index * 0.08}s`,
       }}
     >
-      {/* Circle */}
+      {/* Icon */}
       <div
-        className="relative w-32 h-32 rounded-full flex items-center justify-center mb-4 shadow-xl border-4 border-white"
-        style={{
-          background: circle.bg,
-          color: circle.color,
-          boxShadow: `0 12px 40px ${circle.color}30, 0 4px 16px rgba(0,0,0,0.08)`,
-        }}
+        className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+        style={{ background: item.bg, color: item.color }}
       >
-        <div style={{ color: circle.color }}>{circle.icon}</div>
-        {/* Pulse ring */}
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            border: `2px solid ${circle.color}`,
-            animation: `heartbeat 2.5s ease-in-out ${index * 0.3}s infinite`,
-            opacity: 0.4,
-          }}
-        />
+        {item.icon}
       </div>
 
-      {/* Label button */}
-      <div
-        className="px-5 py-2 rounded-full text-sm font-semibold text-white mb-4 shadow-md"
-        style={{
-          background: `linear-gradient(135deg, ${circle.color}, ${circle.color}cc)`,
-        }}
+      <h3
+        className="font-semibold mb-2 text-base"
+        style={{ color: "var(--gray-900)" }}
       >
-        {circle.label}
-      </div>
-
-      {/* Description */}
-      <p className="text-sm text-slate-600 max-w-[200px] leading-relaxed">
-        {circle.desc}
+        {item.label}
+      </h3>
+      <p className="text-sm leading-relaxed" style={{ color: "var(--gray-600)" }}>
+        {item.desc}
       </p>
     </div>
   );
@@ -131,52 +95,41 @@ function CircleCard({
 
 export default function CirclesSection() {
   return (
-    <section className="relative py-20 overflow-hidden" style={{ background: "#EFF6FF" }}>
-      {/* Subtle background teal wave top */}
-      <div
-        className="absolute top-0 left-0 right-0 h-2 rounded-b-full"
-        style={{ background: "linear-gradient(90deg, #BFDBFE, #93C5FD, #60A5FA, #93C5FD, #BFDBFE)" }}
-      />
-
-      <div className="max-w-6xl mx-auto px-6">
+    <section id="about" className="py-24" style={{ background: "var(--white)" }}>
+      <hr className="section-divider" />
+      <div className="max-w-6xl mx-auto px-6 pt-24">
         {/* Section header */}
-        <div className="text-center mb-16">
-          <span
-            className="text-xs font-semibold tracking-widest uppercase text-blue-500 mb-3 block"
-            style={{ letterSpacing: "0.2em" }}
+        <div className="mb-14 max-w-2xl">
+          <p
+            className="text-xs font-semibold tracking-widest uppercase mb-3"
+            style={{ color: "var(--blue-600)" }}
           >
             What We Do
-          </span>
+          </p>
           <h2
-            className="text-4xl md:text-5xl font-bold mb-4"
-            style={{ fontFamily: "Georgia, serif", color: "#1E3A5F" }}
+            className="text-3xl md:text-4xl font-bold mb-4"
+            style={{
+              fontFamily: "Georgia, serif",
+              color: "var(--gray-900)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.2,
+            }}
           >
             Empowering Community
           </h2>
-          <div className="w-16 h-1 rounded-full mx-auto" style={{ background: "linear-gradient(90deg, #2563EB, #0891B2)" }} />
+          <p className="text-base leading-relaxed" style={{ color: "var(--gray-600)" }}>
+            HeartTalks is devoted to spreading knowledge about cardiovascular
+            health and the connection between mental and physical well-being —
+            informing people of all ages about heart disease, prevention, and care.
+          </p>
         </div>
 
-        {/* Circles Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
-          {circles.map((circle, i) => (
-            <CircleCard key={i} circle={circle} index={i} />
+        {/* Grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
+          {pillars.map((item, i) => (
+            <PillarCard key={i} item={item} index={i} />
           ))}
         </div>
-      </div>
-
-      {/* Bottom wave into about section */}
-      <div className="wave-bottom" style={{ bottom: "-2px" }}>
-        <svg
-          viewBox="0 0 1440 60"
-          xmlns="http://www.w3.org/2000/svg"
-          preserveAspectRatio="none"
-          style={{ display: "block", height: "60px", width: "100%" }}
-        >
-          <path
-            d="M0,30 C360,60 720,0 1080,30 C1260,45 1380,20 1440,30 L1440,60 L0,60 Z"
-            fill="#DBEAFE"
-          />
-        </svg>
       </div>
     </section>
   );

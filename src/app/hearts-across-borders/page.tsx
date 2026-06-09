@@ -1,21 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 /* ─── Types ──────────────────────────────────────────── */
-interface ContactMember {
+interface Member {
   name: string;
   email: string;
   phone: string;
   role: string;
   initial: string;
   color: string;
-  bio?: string;
   isFounder?: boolean;
+  bio?: string;
 }
 
 /* ─── Data ────────────────────────────────────────────── */
-const team: ContactMember[] = [
+const team: Member[] = [
   {
     name: "Jia Ginjupalli",
     email: "ginjupalli.jia05@bloomfield.org",
@@ -68,178 +69,177 @@ const team: ContactMember[] = [
   },
 ];
 
-/* ─── Scroll reveal hook ─────────────────────────────── */
-function useScrollReveal() {
+/* ─── Scroll reveal ───────────────────────────────────── */
+function useReveal() {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [v, setV] = useState(false);
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); observer.disconnect(); } },
-      { threshold: 0.1 }
+    const ob = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setV(true); ob.disconnect(); } },
+      { threshold: 0.08 }
     );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    if (ref.current) ob.observe(ref.current);
+    return () => ob.disconnect();
   }, []);
-  return { ref, visible };
+  return { ref, v };
 }
 
-/* ─── Contact Card ───────────────────────────────────── */
-function ContactCard({ member, index }: { member: ContactMember; index: number }) {
-  const { ref, visible } = useScrollReveal();
+/* ─── Contact row (list style) ────────────────────────── */
+function MemberRow({ m, index }: { m: Member; index: number }) {
+  const { ref, v } = useReveal();
   return (
     <div
       ref={ref}
-      className="contact-card rounded-3xl p-6 relative overflow-hidden"
+      className="contact-card flex items-center gap-4 py-4 px-5 rounded-xl"
       style={{
-        background: "rgba(255,255,255,0.9)",
-        border: "1px solid rgba(147,197,253,0.3)",
-        backdropFilter: "blur(12px)",
-        boxShadow: "0 4px 24px rgba(30,64,175,0.06)",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0) scale(1)" : "translateY(40px) scale(0.93)",
-        transition: `opacity 0.6s ease ${index * 0.1}s, transform 0.7s cubic-bezier(0.34,1.4,0.64,1) ${index * 0.1}s`,
+        background: "var(--white)",
+        border: "1px solid var(--gray-200)",
+        opacity: v ? 1 : 0,
+        transform: v ? "translateY(0)" : "translateY(10px)",
+        transition: `opacity 0.45s ease ${index * 0.06}s, transform 0.45s ease ${index * 0.06}s`,
       }}
     >
-      {/* Subtle corner accent */}
+      {/* Avatar */}
       <div
-        className="absolute top-0 right-0 w-20 h-20 rounded-bl-[60px] opacity-10"
-        style={{ background: member.color }}
-      />
+        className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+        style={{ background: m.color, boxShadow: `0 2px 8px ${m.color}40` }}
+      >
+        {m.initial}
+      </div>
 
-      <div className="flex items-start gap-4">
-        {/* Avatar */}
-        <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow-md"
-          style={{
-            background: `linear-gradient(135deg, ${member.color}, ${member.color}aa)`,
-          }}
+      {/* Name + role */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-sm" style={{ color: "var(--gray-900)" }}>
+            {m.name}
+          </span>
+          {m.isFounder && (
+            <span
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+              style={{
+                background: "var(--blue-50)",
+                color: "var(--blue-700)",
+                border: "1px solid var(--blue-200)",
+              }}
+            >
+              Founder
+            </span>
+          )}
+        </div>
+        <span className="text-xs" style={{ color: "var(--gray-400)" }}>{m.role}</span>
+      </div>
+
+      {/* Contact links */}
+      <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
+        <a
+          href={`mailto:${m.email}`}
+          className="text-xs transition-colors duration-150 hover:underline"
+          style={{ color: "var(--gray-600)" }}
+          title={m.email}
         >
-          {member.initial}
-        </div>
+          {m.email}
+        </a>
+        <span style={{ color: "var(--gray-200)" }}>·</span>
+        <a
+          href={`tel:${m.phone.replace(/-/g, "")}`}
+          className="text-xs transition-colors duration-150 hover:text-gray-900"
+          style={{ color: "var(--gray-500)" }}
+        >
+          {m.phone}
+        </a>
+      </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold text-slate-800 text-base">{member.name}</h3>
-            {member.isFounder && (
-              <span
-                className="text-xs px-2 py-0.5 rounded-full font-semibold text-white"
-                style={{ background: member.color }}
-              >
-                Founder
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-blue-500 font-medium mt-0.5 mb-3">{member.role}</p>
-
-          <div className="space-y-2">
-            <a
-              href={`mailto:${member.email}`}
-              className="flex items-center gap-2 text-xs text-slate-500 hover:text-blue-600 transition-colors group"
-            >
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0 text-[10px]"
-                style={{ background: member.color }}
-              >
-                @
-              </span>
-              <span className="truncate group-hover:underline">{member.email}</span>
-            </a>
-            <a
-              href={`tel:${member.phone.replace(/-/g, "")}`}
-              className="flex items-center gap-2 text-xs text-slate-500 hover:text-blue-600 transition-colors"
-            >
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0 text-[10px]"
-                style={{ background: member.color }}
-              >
-                ☎
-              </span>
-              {member.phone}
-            </a>
-          </div>
-        </div>
+      {/* Mobile: email only */}
+      <div className="flex sm:hidden flex-col items-end gap-0.5 flex-shrink-0">
+        <a
+          href={`mailto:${m.email}`}
+          className="text-xs"
+          style={{ color: "var(--blue-600)" }}
+        >
+          Email ↗
+        </a>
       </div>
     </div>
   );
 }
 
-/* ─── Founder Bio Card ───────────────────────────────── */
-function FounderBioCard() {
-  const { ref, visible } = useScrollReveal();
+/* ─── Founder bio card ────────────────────────────────── */
+function FounderCard() {
+  const { ref, v } = useReveal();
   const founder = team[0];
   return (
     <div
       ref={ref}
-      className="rounded-3xl overflow-hidden shadow-2xl"
       style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(50px)",
-        transition: "opacity 0.9s ease, transform 0.9s cubic-bezier(0.34,1.3,0.64,1)",
+        opacity: v ? 1 : 0,
+        transform: v ? "translateY(0)" : "translateY(16px)",
+        transition: "opacity 0.6s ease, transform 0.6s ease",
       }}
     >
       <div
-        className="p-8 md:p-12 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #1D4ED8 0%, #0891B2 100%)" }}
+        className="rounded-xl p-8 md:p-10"
+        style={{
+          background: "var(--blue-700)",
+          border: "1px solid var(--blue-800)",
+        }}
       >
-        {/* Decorative hearts */}
-        <div className="absolute top-4 right-6 text-white opacity-10 text-8xl pointer-events-none select-none">♥</div>
-        <div className="absolute bottom-4 left-4 text-white opacity-5 text-5xl pointer-events-none select-none">♥</div>
-
-        <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
+        <div className="flex flex-col md:flex-row gap-8">
           {/* Avatar */}
           <div className="flex-shrink-0">
             <div
-              className="w-28 h-28 rounded-3xl flex items-center justify-center text-4xl font-bold text-white shadow-2xl border-4 border-white/30"
+              className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold text-white"
               style={{
-                background: "rgba(255,255,255,0.2)",
-                backdropFilter: "blur(8px)",
-                animation: "heartbeat 3s ease-in-out infinite",
+                background: "rgba(255,255,255,0.15)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                animation: "heartbeat 2.5s ease-in-out infinite",
               }}
             >
               J
             </div>
           </div>
 
-          {/* Bio */}
+          {/* Bio text */}
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h3
-                className="text-2xl md:text-3xl font-bold text-white"
-                style={{ fontFamily: "Georgia, serif" }}
-              >
+            <div className="flex items-center gap-3 mb-1">
+              <h3 className="font-bold text-white text-lg" style={{ fontFamily: "Georgia, serif" }}>
                 {founder.name}
               </h3>
-              <span className="text-2xl" style={{ animation: "heartbeat 2s ease-in-out infinite" }}>❤️</span>
             </div>
-            <p className="text-blue-200 font-medium mb-1 text-sm uppercase tracking-wide">
-              Founder, HeartTalks
+            <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: "rgba(255,255,255,0.55)" }}>
+              Founder · HeartTalks
             </p>
-            <p className="text-blue-100 font-medium mb-6 text-sm">
-              {founder.role} · Aspiring Cardiothoracic Surgeon
+            <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.6)" }}>
+              Aspiring Cardiothoracic Surgeon
             </p>
 
-            <blockquote className="relative">
-              <span className="absolute -top-4 -left-2 text-6xl text-white/20 font-serif leading-none">&ldquo;</span>
-              <p className="text-white text-lg md:text-xl leading-relaxed italic pl-4">
-                {founder.bio}
+            <blockquote className="border-l-2 pl-4 mb-6" style={{ borderColor: "rgba(255,255,255,0.3)" }}>
+              <p className="text-white text-base leading-relaxed italic">
+                &ldquo;{founder.bio}&rdquo;
               </p>
-              <span className="text-white/20 text-6xl font-serif leading-none">&rdquo;</span>
             </blockquote>
 
-            <div className="flex flex-wrap gap-4 mt-6">
+            <div className="flex flex-wrap gap-3">
               <a
                 href={`mailto:${founder.email}`}
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:-translate-y-0.5"
-                style={{ background: "rgba(255,255,255,0.2)", color: "white", border: "1px solid rgba(255,255,255,0.3)" }}
+                className="text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-150"
+                style={{
+                  background: "rgba(255,255,255,0.12)",
+                  color: "rgba(255,255,255,0.9)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                }}
               >
                 ✉ {founder.email}
               </a>
               <a
                 href={`tel:${founder.phone.replace(/-/g, "")}`}
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:-translate-y-0.5"
-                style={{ background: "rgba(255,255,255,0.2)", color: "white", border: "1px solid rgba(255,255,255,0.3)" }}
+                className="text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-150"
+                style={{
+                  background: "rgba(255,255,255,0.12)",
+                  color: "rgba(255,255,255,0.9)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                }}
               >
-                ☎ {founder.phone}
+                {founder.phone}
               </a>
             </div>
           </div>
@@ -249,202 +249,161 @@ function FounderBioCard() {
   );
 }
 
-/* ─── Animated floating hearts background ─────────────── */
-function FloatingHeartsBackground() {
-  const [particles, setParticles] = useState<React.CSSProperties[]>([]);
-  useEffect(() => {
-    setParticles(
-      Array.from({ length: 12 }, () => ({
-        left: `${Math.random() * 100}%`,
-        bottom: `${Math.random() * 10}%`,
-        fontSize: `${Math.random() * 16 + 8}px`,
-        animationDuration: `${Math.random() * 6 + 7}s`,
-        animationDelay: `${Math.random() * 8}s`,
-        color: "rgba(147,197,253,0.35)",
-      }))
-    );
-  }, []);
-  return (
-    <>
-      {particles.map((style, i) => (
-        <div
-          key={i}
-          className="absolute pointer-events-none select-none"
-          style={{ ...style, animation: `floatHeart ${style.animationDuration} ease-in-out infinite`, animationDelay: style.animationDelay as string }}
-        >
-          ♥
-        </div>
-      ))}
-    </>
-  );
-}
-
 /* ─── Page ────────────────────────────────────────────── */
 export default function HeartsAcrossBordersPage() {
-  const heroReveal = useScrollReveal();
-
   return (
-    <main>
-      {/* ── Hero ── */}
+    <main style={{ background: "var(--white)" }}>
+
+      {/* ── Page header ── */}
       <section
-        className="hero-bg relative min-h-[60vh] flex flex-col items-center justify-center overflow-hidden"
-        style={{ paddingTop: "100px", paddingBottom: "80px" }}
+        className="hero-bg"
+        style={{ paddingTop: "96px", paddingBottom: "72px" }}
       >
-        <FloatingHeartsBackground />
-
-        {/* Grid pattern */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-10"
-          style={{
-            backgroundImage: "radial-gradient(circle, #1E40AF 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
-
-        {/* Orbs */}
-        <div
-          className="absolute top-10 left-10 w-80 h-80 rounded-full opacity-25 pointer-events-none"
-          style={{ background: "radial-gradient(circle, #93C5FD, transparent 70%)", animation: "orbFloat 10s ease-in-out infinite" }}
-        />
-        <div
-          className="absolute bottom-10 right-10 w-64 h-64 rounded-full opacity-20 pointer-events-none"
-          style={{ background: "radial-gradient(circle, #60A5FA, transparent 70%)", animation: "orbFloat 8s ease-in-out -4s infinite" }}
-        />
-
-        <div
-          ref={heroReveal.ref}
-          className="relative z-10 text-center px-6 max-w-4xl mx-auto"
-          style={{
-            opacity: heroReveal.visible ? 1 : 0,
-            transform: heroReveal.visible ? "translateY(0)" : "translateY(40px)",
-            transition: "opacity 0.9s ease, transform 0.9s ease",
-          }}
-        >
-          <span className="text-xs font-semibold tracking-widest uppercase text-blue-600 mb-4 block">
-            Flagship Initiative
-          </span>
-          <h1
-            className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
-            style={{ fontFamily: "Georgia, serif", color: "#1E3A5F" }}
-          >
-            Hearts{" "}
-            <span className="gradient-text">Across Borders</span>
-          </h1>
-          <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            A heart health equipment donation initiative — bridging gaps in
-            cardiovascular care across local and international communities.
-          </p>
-
-          {/* EKG ornament */}
-          <div className="mt-10 flex justify-center">
-            <svg viewBox="0 0 400 40" className="w-64 opacity-40">
-              <polyline
-                className="ekg-line"
-                points="0,20 60,20 80,20 90,5 100,35 108,2 116,32 124,20 200,20 220,20 230,10 240,30 248,5 256,28 264,20 340,20 360,20 368,12 376,28 382,6 390,26 398,20"
-                fill="none"
-                stroke="#2563EB"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="max-w-2xl">
+            <p
+              className="text-xs font-semibold tracking-widest uppercase mb-3"
+              style={{
+                color: "var(--blue-600)",
+                opacity: 0,
+                animation: "revealUp 0.5s ease forwards",
+                animationDelay: "0.1s",
+              }}
+            >
+              Flagship Initiative
+            </p>
+            <h1
+              className="font-bold mb-4"
+              style={{
+                fontFamily: "Georgia, serif",
+                fontSize: "clamp(32px, 5vw, 52px)",
+                color: "var(--gray-900)",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.15,
+                opacity: 0,
+                animation: "revealUp 0.6s ease forwards",
+                animationDelay: "0.2s",
+              }}
+            >
+              Hearts Across Borders
+            </h1>
+            <p
+              className="text-base leading-relaxed"
+              style={{
+                color: "var(--gray-600)",
+                maxWidth: "520px",
+                opacity: 0,
+                animation: "revealUp 0.6s ease forwards",
+                animationDelay: "0.35s",
+              }}
+            >
+              A heart health equipment donation initiative — bridging gaps in cardiovascular
+              care across local and international communities.
+            </p>
           </div>
-        </div>
-
-        {/* Bottom wave */}
-        <div className="wave-bottom">
-          <svg viewBox="0 0 1440 60" preserveAspectRatio="none" style={{ display: "block", height: "60px", width: "100%" }}>
-            <path d="M0,40 C240,80 480,0 720,40 C960,80 1200,0 1440,40 L1440,60 L0,60 Z" fill="#EFF6FF" />
-          </svg>
         </div>
       </section>
 
-      {/* ── About Initiative ── */}
-      <section
-        className="py-20 relative overflow-hidden"
-        style={{ background: "linear-gradient(180deg, #EFF6FF 0%, #DBEAFE 100%)" }}
-      >
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="rounded-3xl p-8 md:p-12 shadow-xl" style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(16px)", border: "1px solid rgba(147,197,253,0.3)" }}>
-            <h2 className="text-3xl font-bold mb-6" style={{ fontFamily: "Georgia, serif", color: "#1E3A5F" }}>
+      <hr className="section-divider" />
+
+      {/* ── About initiative ── */}
+      <section className="py-16" style={{ background: "var(--white)" }}>
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="max-w-3xl">
+            <h2
+              className="text-xl font-semibold mb-4"
+              style={{ color: "var(--gray-900)" }}
+            >
               About the Initiative
             </h2>
-            <p className="text-slate-600 leading-relaxed text-lg mb-4">
-              We are currently implementing a Heart Health Equipment Donation Initiative,
-              called <strong className="text-blue-700">&ldquo;HeartTalks: Hearts Across Borders&rdquo;</strong>,
-              which involves the collection of vital cardiovascular or rehabilitation equipment.
-            </p>
-            <p className="text-slate-600 leading-relaxed text-lg">
-              This equipment will be distributed to hospitals and health organizations that
-              serve marginalized communities within the local and international environment —
-              bridging healthcare gaps one donation at a time.
-            </p>
+            <div className="space-y-3 text-base leading-relaxed" style={{ color: "var(--gray-600)" }}>
+              <p>
+                We are currently implementing a Heart Health Equipment Donation Initiative,
+                called <strong style={{ color: "var(--gray-800)" }}>&ldquo;HeartTalks: Hearts Across Borders&rdquo;</strong>,
+                which involves the collection of vital cardiovascular or rehabilitation equipment.
+              </p>
+              <p>
+                This equipment will be distributed to hospitals and health organizations that
+                serve marginalized communities within the local and international environment —
+                bridging healthcare gaps one donation at a time.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── Team Contacts ── */}
-      <section className="py-20" style={{ background: "#DBEAFE" }}>
+      <hr className="section-divider" />
+
+      {/* ── Team ── */}
+      <section className="py-16" style={{ background: "var(--gray-50)" }}>
         <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <span className="text-xs font-semibold tracking-widest uppercase text-blue-600 mb-3 block">
-              The Team
-            </span>
+          <div className="mb-8">
             <h2
-              className="text-4xl md:text-5xl font-bold mb-4"
-              style={{ fontFamily: "Georgia, serif", color: "#1E3A5F" }}
+              className="text-xl font-semibold mb-1"
+              style={{ color: "var(--gray-900)" }}
             >
-              Meet Our Team
+              Team Contacts
             </h2>
-            <p className="text-slate-600 max-w-xl mx-auto">
-              Passionate students dedicated to making cardiovascular health knowledge accessible to all.
+            <p className="text-sm" style={{ color: "var(--gray-500)" }}>
+              {team.length} members · Bloomfield, Michigan
             </p>
-            <div className="w-12 h-1 rounded-full mx-auto mt-4" style={{ background: "linear-gradient(90deg, #2563EB, #0891B2)" }} />
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {team.map((member, i) => (
-              <ContactCard key={i} member={member} index={i} />
+          <div className="flex flex-col gap-3">
+            {team.map((m, i) => (
+              <MemberRow key={i} m={m} index={i} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Founder Bio (bottom) ── */}
-      <section className="py-20" style={{ background: "#EFF6FF" }}>
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <span className="text-xs font-semibold tracking-widest uppercase text-blue-500 mb-3 block">
-              Meet the Visionary
-            </span>
-            <h2
-              className="text-3xl md:text-4xl font-bold"
-              style={{ fontFamily: "Georgia, serif", color: "#1E3A5F" }}
+      <hr className="section-divider" />
+
+      {/* ── Founder bio (bottom) ── */}
+      <section className="py-16" style={{ background: "var(--white)" }}>
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="mb-8">
+            <p
+              className="text-xs font-semibold tracking-widest uppercase mb-2"
+              style={{ color: "var(--blue-600)" }}
             >
               Founder&apos;s Message
+            </p>
+            <h2 className="text-xl font-semibold" style={{ color: "var(--gray-900)" }}>
+              From the Desk of Jia Ginjupalli
             </h2>
-            <div className="w-12 h-1 rounded-full mx-auto mt-4" style={{ background: "linear-gradient(90deg, #2563EB, #0891B2)" }} />
           </div>
-          <FounderBioCard />
+          <div className="max-w-3xl">
+            <FounderCard />
+          </div>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer
-        className="relative py-12 overflow-hidden"
-        style={{ background: "#1E3A5F" }}
-      >
-        <div
-          className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: "linear-gradient(90deg, transparent, #93C5FD, transparent)" }}
-        />
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <div className="text-4xl mb-4" style={{ animation: "heartbeat 2s ease-in-out infinite" }}>❤️</div>
-          <p className="text-blue-200 text-sm">
-            Together, we raise the standard of cardiovascular care — one heart, one community at a time.
-          </p>
-          <p className="text-blue-400/60 text-xs mt-4">
+      <footer style={{ background: "var(--gray-900)", color: "var(--gray-400)" }}>
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-white" style={{ fontFamily: "Georgia, serif" }}>
+                HeartTalks
+              </span>
+              <span style={{ color: "var(--gray-700)" }}>·</span>
+              <span className="text-sm">Hearts Across Borders</span>
+            </div>
+            <Link
+              href="/"
+              className="text-sm transition-colors duration-150 hover:text-white"
+              style={{ color: "var(--gray-500)" }}
+            >
+              ← Back to Home
+            </Link>
+          </div>
+          <div
+            className="mt-6 pt-6 text-xs text-center"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.07)", color: "var(--gray-600)" }}
+          >
             © {new Date().getFullYear()} HeartTalks. All rights reserved.
-          </p>
+          </div>
         </div>
       </footer>
     </main>

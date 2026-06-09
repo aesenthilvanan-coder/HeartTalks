@@ -27,12 +27,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <img
-          src="/logo.png"
-          alt=""
-          className="watermark"
-          aria-hidden="true"
-        />
         <Navbar />
         {children}
       </body>

@@ -4,11 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-/* ─── Particle Heart Canvas ───────────────────────────── */
+/* ─── Particle-heart canvas ───────────────────────────── */
 interface Particle {
   x: number; y: number;
   vx: number; vy: number;
-  tx: number; ty: number;
   size: number; opacity: number;
   color: string; phase: number;
 }
@@ -22,190 +21,166 @@ function HeartCanvas() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    let w = 0, h = 0;
     const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-      return { w: canvas.width, h: canvas.height };
+      w = canvas.width = canvas.offsetWidth;
+      h = canvas.height = canvas.offsetHeight;
     };
-    let { w, h } = resize();
-    window.addEventListener("resize", () => { const d = resize(); w = d.w; h = d.h; });
+    resize();
+    window.addEventListener("resize", resize);
 
-    const COLORS = ["#93C5FD", "#60A5FA", "#3B82F6", "#BFDBFE", "#38BDF8", "#7DD3FC", "#2563EB"];
-    const N = 160;
+    const COLORS = ["#93C5FD", "#60A5FA", "#3B82F6", "#BFDBFE", "#7DD3FC", "#2563EB"];
+    const N = 140;
 
-    const buildHeart = (cx: number, cy: number, s: number): [number, number][] =>
+    const buildHeart = (scale: number): [number, number][] =>
       Array.from({ length: N }, (_, i) => {
         const t = (i / N) * 2 * Math.PI;
         return [
-          cx + 16 * Math.pow(Math.sin(t), 3) * s,
-          cy - (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * s,
+          w / 2 + 16 * Math.pow(Math.sin(t), 3) * scale,
+          h / 2 - (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * scale,
         ];
       });
 
-    let heart = buildHeart(w / 2, h / 2, Math.min(w, h) / 22);
-
-    const particles: Particle[] = Array.from({ length: N }, (_, i) => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 1.5,
-      vy: (Math.random() - 0.5) * 1.5,
-      tx: heart[i][0],
-      ty: heart[i][1],
-      size: Math.random() * 2.5 + 1.2,
-      opacity: Math.random() * 0.4 + 0.35,
+    const particles: Particle[] = Array.from({ length: N }, () => ({
+      x: Math.random() * (w || 800),
+      y: Math.random() * (h || 600),
+      vx: (Math.random() - 0.5) * 1.2,
+      vy: (Math.random() - 0.5) * 1.2,
+      size: Math.random() * 2.2 + 1,
+      opacity: Math.random() * 0.35 + 0.3,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       phase: Math.random() * Math.PI * 2,
     }));
 
-    /* Extra ambient drifters */
-    const drifters: Particle[] = Array.from({ length: 30 }, () => ({
-      x: Math.random() * w, y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6,
-      tx: 0, ty: 0,
-      size: Math.random() * 1.5 + 0.5,
-      opacity: Math.random() * 0.25 + 0.1,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      phase: Math.random() * Math.PI * 2,
+    /* ambient drifters */
+    const ambient: Particle[] = Array.from({ length: 25 }, () => ({
+      x: Math.random() * (w || 800), y: Math.random() * (h || 600),
+      vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+      size: Math.random() * 1.2 + 0.4, opacity: Math.random() * 0.2 + 0.08,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)], phase: Math.random() * Math.PI * 2,
     }));
 
-    let frame = 0;
-    let animId: number;
+    let frame = 0, animId: number;
 
-    const animate = () => {
+    const draw = () => {
       ctx.clearRect(0, 0, w, h);
       frame++;
 
-      /* Recompute heart targets so it breathes */
-      const breath = 1 + Math.sin(frame * 0.022) * 0.06;
-      const cx = w / 2, cy = h / 2;
-      heart = buildHeart(cx, cy, (Math.min(w, h) / 22) * breath);
+      const conv = Math.min(1, frame / 180);
+      const breath = 1 + Math.sin(frame * 0.022) * 0.055;
+      const scale = Math.min(w, h) / 22;
+      const heart = buildHeart(scale * breath);
 
-      const conv = Math.min(1, frame / 200);   // 0→1 over ~200 frames
-
-      /* ── heart particles ── */
       particles.forEach((p, i) => {
-        p.tx = heart[i][0];
-        p.ty = heart[i][1];
-
-        const pull = conv * 0.06;
-        p.x += (p.tx - p.x) * pull + p.vx * (1 - conv);
-        p.y += (p.ty - p.y) * pull + p.vy * (1 - conv);
-        p.vx = p.vx * 0.97 + (Math.random() - 0.5) * 0.12;
-        p.vy = p.vy * 0.97 + (Math.random() - 0.5) * 0.12;
+        const [tx, ty] = heart[i];
+        const pull = conv * 0.055;
+        p.x += (tx - p.x) * pull + p.vx * (1 - conv);
+        p.y += (ty - p.y) * pull + p.vy * (1 - conv);
+        p.vx = p.vx * 0.97 + (Math.random() - 0.5) * 0.1;
+        p.vy = p.vy * 0.97 + (Math.random() - 0.5) * 0.1;
         if (p.x < 0 || p.x > w) p.vx *= -1;
         if (p.y < 0 || p.y > h) p.vy *= -1;
 
-        const op = p.opacity + Math.sin(frame * 0.04 + p.phase) * 0.18;
+        const op = Math.max(0, Math.min(1, p.opacity + Math.sin(frame * 0.04 + p.phase) * 0.15));
 
-        /* Glow */
-        const gr = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 5);
+        /* glow halo */
+        const gr = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 4.5);
         gr.addColorStop(0, p.color);
         gr.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.globalAlpha = op * 0.35;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 5, 0, Math.PI * 2);
+        ctx.globalAlpha = op * 0.3;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 4.5, 0, Math.PI * 2);
         ctx.fillStyle = gr; ctx.fill();
 
-        /* Core dot */
+        /* core */
         ctx.globalAlpha = op;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fillStyle = p.color; ctx.fill();
         ctx.globalAlpha = 1;
 
-        /* Constellation lines */
-        if (conv > 0.3) {
-          for (let j = i + 1; j < Math.min(i + 6, N); j++) {
+        /* constellation edges */
+        if (conv > 0.25) {
+          for (let j = i + 1; j < Math.min(i + 5, N); j++) {
             const q = particles[j];
             const d = Math.hypot(p.x - q.x, p.y - q.y);
-            if (d < 52) {
-              ctx.globalAlpha = (1 - d / 52) * 0.45 * conv;
+            if (d < 50) {
+              ctx.globalAlpha = (1 - d / 50) * 0.4 * conv;
               ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
-              ctx.strokeStyle = p.color; ctx.lineWidth = 0.7; ctx.stroke();
+              ctx.strokeStyle = p.color; ctx.lineWidth = 0.6; ctx.stroke();
               ctx.globalAlpha = 1;
             }
           }
         }
       });
 
-      /* ── ambient drifters ── */
-      drifters.forEach((p) => {
+      /* ambient */
+      ambient.forEach((p) => {
         p.x += p.vx; p.y += p.vy;
         if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
         if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
-        const op = p.opacity + Math.sin(frame * 0.025 + p.phase) * 0.1;
-        ctx.globalAlpha = op;
+        ctx.globalAlpha = p.opacity + Math.sin(frame * 0.02 + p.phase) * 0.08;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fillStyle = p.color; ctx.fill();
         ctx.globalAlpha = 1;
       });
 
-      /* ── pulse rings from heart center ── */
-      if (conv > 0.6) {
-        const beat = frame % 110;
+      /* pulse rings */
+      if (conv > 0.65) {
+        const cx = w / 2, cy = h / 2;
         [0, 55].forEach((offset) => {
-          const age = (beat + offset) % 110;
-          if (age < 90) {
-            const r = (age / 90) * Math.min(w, h) * 0.45;
-            const a = (1 - age / 90) * 0.35 * conv;
-            ctx.globalAlpha = a;
-            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.strokeStyle = "#3B82F6"; ctx.lineWidth = 1.5; ctx.stroke();
+          const age = (frame + offset) % 110;
+          if (age < 85) {
+            ctx.globalAlpha = (1 - age / 85) * 0.3 * conv;
+            ctx.beginPath(); ctx.arc(cx, cy, (age / 85) * Math.min(w, h) * 0.44, 0, Math.PI * 2);
+            ctx.strokeStyle = "#3B82F6"; ctx.lineWidth = 1.2; ctx.stroke();
             ctx.globalAlpha = 1;
           }
         });
       }
 
-      animId = requestAnimationFrame(animate);
+      animId = requestAnimationFrame(draw);
     };
 
-    animate();
-    return () => { cancelAnimationFrame(animId); };
+    draw();
+    return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
       className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ opacity: 0.75 }}
+      style={{ opacity: 0.72 }}
     />
   );
 }
 
-/* ─── Typewriter text ─────────────────────────────────── */
-function TypewriterText({ text, delay = 0, className = "", style = {} }: {
+/* ─── Typewriter ──────────────────────────────────────── */
+function Typewriter({ text, delay = 0, className = "", style = {} }: {
   text: string; delay?: number; className?: string; style?: React.CSSProperties;
 }) {
-  const [displayed, setDisplayed] = useState("");
-  const [started, setStarted] = useState(false);
-
+  const [chars, setChars] = useState(0);
   useEffect(() => {
-    const t = setTimeout(() => setStarted(true), delay);
-    return () => clearTimeout(t);
-  }, [delay]);
-
-  useEffect(() => {
-    if (!started) return;
-    let i = 0;
-    const interval = setInterval(() => {
-      setDisplayed(text.slice(0, i + 1));
-      i++;
-      if (i >= text.length) clearInterval(interval);
-    }, 45);
-    return () => clearInterval(interval);
-  }, [started, text]);
+    const start = setTimeout(() => {
+      const iv = setInterval(() => {
+        setChars((c) => { if (c >= text.length) { clearInterval(iv); return c; } return c + 1; });
+      }, 42);
+      return () => clearInterval(iv);
+    }, delay);
+    return () => clearTimeout(start);
+  }, [text, delay]);
 
   return (
     <span className={className} style={style}>
-      {displayed}
-      {displayed.length < text.length && started && (
+      {text.slice(0, chars)}
+      {chars < text.length && (
         <span
           style={{
             display: "inline-block",
             width: "2px",
-            height: "1em",
-            background: "#2563EB",
+            height: "0.85em",
+            background: "var(--blue-600)",
             marginLeft: "2px",
             verticalAlign: "middle",
-            animation: "waveFloat 0.6s ease-in-out infinite",
+            animation: "pulse 0.6s step-end infinite",
           }}
         />
       )}
@@ -213,201 +188,146 @@ function TypewriterText({ text, delay = 0, className = "", style = {} }: {
   );
 }
 
-/* ─── Word stagger reveal ─────────────────────────────── */
-function StaggerReveal({ text, delay = 0, className = "" }: {
-  text: string; delay?: number; className?: string;
-}) {
-  return (
-    <span className={className}>
-      {text.split(" ").map((w, i) => (
-        <span
-          key={i}
-          className="inline-block"
-          style={{
-            opacity: 0,
-            animation: "revealUp 0.6s cubic-bezier(0.22,1,0.36,1) forwards",
-            animationDelay: `${delay + i * 0.1}s`,
-          }}
-        >
-          {w}&nbsp;
-        </span>
-      ))}
-    </span>
-  );
-}
-
-/* ─── Main Hero ───────────────────────────────────────── */
+/* ─── Hero ────────────────────────────────────────────── */
 export default function HeroSection() {
-  const [phase, setPhase] = useState<"canvas" | "logo" | "text">("canvas");
-
+  const [phase, setPhase] = useState(0);
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase("logo"), 600);
-    const t2 = setTimeout(() => setPhase("text"), 1200);
+    const t1 = setTimeout(() => setPhase(1), 400);
+    const t2 = setTimeout(() => setPhase(2), 1000);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   return (
     <section
-      className="hero-bg relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
-      style={{ paddingTop: "80px" }}
+      className="hero-bg relative min-h-screen flex items-center justify-center overflow-hidden"
+      style={{ paddingTop: "60px" }}
     >
-      {/* Particle heart canvas */}
       <HeartCanvas />
 
-      {/* Subtle grid */}
+      {/* Subtle dot grid */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.07]"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: "radial-gradient(circle, #1E40AF 1px, transparent 1px)",
-          backgroundSize: "36px 36px",
+          backgroundImage: "radial-gradient(circle, rgba(30,64,175,0.06) 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
         }}
       />
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-5xl mx-auto">
+      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-4xl mx-auto py-24">
 
-        {/* Logo */}
+        {/* Logo mark */}
         <div
           style={{
-            opacity: phase !== "canvas" ? 1 : 0,
-            transform: phase !== "canvas" ? "scale(1) translateY(0)" : "scale(0.5) translateY(20px)",
-            transition: "opacity 0.9s cubic-bezier(0.34,1.6,0.64,1), transform 0.9s cubic-bezier(0.34,1.6,0.64,1)",
-            marginBottom: "28px",
+            opacity: phase >= 1 ? 1 : 0,
+            transform: phase >= 1 ? "scale(1)" : "scale(0.8)",
+            transition: "opacity 0.5s ease, transform 0.5s cubic-bezier(0.34,1.4,0.64,1)",
+            marginBottom: "24px",
           }}
         >
           <div
-            className="relative w-28 h-28 mx-auto rounded-full overflow-hidden border-4 shadow-2xl"
+            className="relative w-20 h-20 mx-auto rounded-2xl overflow-hidden"
             style={{
-              borderColor: "rgba(147,197,253,0.7)",
-              boxShadow:
-                "0 0 0 6px rgba(147,197,253,0.18), 0 0 0 14px rgba(147,197,253,0.09), 0 24px 64px rgba(30,64,175,0.35)",
-              animation: phase === "text" ? "heartbeat 2s ease-in-out infinite" : "none",
+              boxShadow: "var(--shadow-lg), 0 0 0 4px rgba(147,197,253,0.25)",
+              border: "1px solid rgba(147,197,253,0.5)",
+              animation: phase >= 2 ? "heartbeat 2.2s ease-in-out infinite" : "none",
             }}
           >
             <Image src="/logo.png" alt="HeartTalks" fill className="object-cover" priority />
           </div>
         </div>
 
-        {/* Badge */}
-        {phase === "text" && (
-          <div
-            className="mb-6"
-            style={{ opacity: 0, animation: "revealUp 0.5s ease forwards", animationDelay: "0.1s" }}
+        {/* Eyebrow */}
+        {phase >= 2 && (
+          <p
+            className="text-xs font-semibold tracking-widest uppercase mb-5"
+            style={{
+              color: "var(--blue-600)",
+              opacity: 0,
+              animation: "revealUp 0.5s ease forwards",
+              animationDelay: "0.05s",
+            }}
           >
-            <span
-              className="text-xs font-semibold tracking-widest uppercase px-5 py-2 rounded-full"
-              style={{
-                background: "rgba(147,197,253,0.3)",
-                color: "#1E40AF",
-                border: "1px solid rgba(147,197,253,0.55)",
-                backdropFilter: "blur(10px)",
-              }}
-            >
-              Empowering Communities Through Knowledge
-            </span>
-          </div>
+            Youth-Led Cardiovascular Education
+          </p>
         )}
 
         {/* Headline */}
         <h1
-          className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
-          style={{ fontFamily: "Georgia, serif", minHeight: "3em" }}
+          className="font-bold mb-5"
+          style={{
+            fontFamily: "Georgia, serif",
+            fontSize: "clamp(36px, 6vw, 68px)",
+            lineHeight: 1.15,
+            color: "var(--gray-900)",
+            letterSpacing: "-0.02em",
+            minHeight: "2.4em",
+          }}
         >
-          {phase === "text" ? (
+          {phase >= 2 && (
             <>
-              <span
-                style={{
-                  color: "#0F172A",
-                  textShadow: "0 2px 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.6)",
-                  display: "block",
-                }}
-              >
-                <TypewriterText text="Youth Empowering," delay={200} />
-              </span>
-              <span
-                style={{
-                  display: "block",
-                  color: "#1D4ED8",
-                  textShadow: "0 2px 24px rgba(255,255,255,0.95), 0 0 50px rgba(255,255,255,0.8), 0 4px 8px rgba(255,255,255,0.7)",
-                  WebkitTextStroke: "0.5px rgba(30,64,175,0.4)",
-                }}
-              >
-                <TypewriterText text="Raising World Standards" delay={1100} />
+              <Typewriter text="Youth Empowering," delay={100} />
+              <br />
+              <span style={{ color: "var(--blue-700)" }}>
+                <Typewriter text="Raising World Standards" delay={1000} />
               </span>
             </>
-          ) : (
-            <span style={{ opacity: 0 }}>Youth Empowering,<br />Raising World Standards</span>
           )}
         </h1>
 
-        {/* Sub */}
-        {phase === "text" && (
+        {/* Subheading */}
+        {phase >= 2 && (
           <p
-            className="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
+            className="max-w-xl mx-auto mb-8 text-base leading-relaxed"
             style={{
-              color: "#334155",
+              color: "var(--gray-600)",
               opacity: 0,
-              animation: "revealUp 0.8s ease forwards",
-              animationDelay: "2.4s",
+              animation: "revealUp 0.6s ease forwards",
+              animationDelay: "2.3s",
+              fontSize: "17px",
             }}
           >
-            HeartTalks is a youth-led education organization spreading knowledge
-            about cardiovascular health, the heart–mind connection, and empowering
-            communities one lecture and one bp machine at a time.
+            HeartTalks is a youth-led organization spreading knowledge about
+            cardiovascular health and the heart–mind connection — one lecture
+            and one bp machine at a time.
           </p>
         )}
 
         {/* CTAs */}
-        {phase === "text" && (
+        {phase >= 2 && (
           <div
-            className="flex flex-wrap gap-4 justify-center"
-            style={{ opacity: 0, animation: "revealUp 0.7s ease forwards", animationDelay: "2.7s" }}
+            className="flex flex-wrap gap-3 justify-center"
+            style={{ opacity: 0, animation: "revealUp 0.6s ease forwards", animationDelay: "2.6s" }}
           >
-            <Link
-              href="/hearts-across-borders"
-              className="px-8 py-4 rounded-full font-semibold text-white shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-sm md:text-base"
-              style={{ background: "linear-gradient(135deg, #1D4ED8, #0891B2)" }}
-            >
-              Hearts Across Borders →
+            <Link href="/hearts-across-borders" className="btn-primary">
+              Hearts Across Borders
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06L7.28 12.78a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" />
+              </svg>
             </Link>
-            <a
-              href="#about"
-              className="px-8 py-4 rounded-full font-semibold hover:-translate-y-1 transition-all duration-300 text-sm md:text-base"
-              style={{
-                background: "rgba(255,255,255,0.75)",
-                color: "#1E40AF",
-                border: "2px solid rgba(147,197,253,0.6)",
-                backdropFilter: "blur(10px)",
-              }}
-            >
-              Learn More
-            </a>
+            <a href="#about" className="btn-secondary">Learn More</a>
           </div>
         )}
 
         {/* Scroll cue */}
-        {phase === "text" && (
+        {phase >= 2 && (
           <div
-            className="mt-14 flex flex-col items-center gap-2"
-            style={{ opacity: 0, animation: "fadeIn 1s ease forwards", animationDelay: "3.2s" }}
+            className="mt-16 flex flex-col items-center gap-1.5"
+            style={{ opacity: 0, animation: "fadeIn 0.8s ease forwards", animationDelay: "3s" }}
           >
-            <span className="text-xs tracking-widest text-blue-400 uppercase">Scroll</span>
-            <div
-              className="w-px h-8 rounded-full"
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
               style={{
-                background: "linear-gradient(to bottom, #60A5FA, transparent)",
-                animation: "waveFloat 1.5s ease-in-out infinite",
+                color: "var(--blue-400)",
+                animation: "scrollBounce 1.6s ease-in-out infinite",
               }}
-            />
+            >
+              <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
         )}
-      </div>
-
-      {/* Wave */}
-      <div className="wave-bottom">
-        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" style={{ display: "block", height: "80px", width: "100%" }}>
-          <path d="M0,40 C240,80 480,0 720,40 C960,80 1200,0 1440,40 L1440,80 L0,80 Z" fill="#EFF6FF" />
-        </svg>
       </div>
     </section>
   );
