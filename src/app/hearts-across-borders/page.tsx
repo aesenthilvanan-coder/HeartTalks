@@ -3,68 +3,43 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-/* ══════════════════════════════════════════════════════════
-   GLOBE CANVAS — rotating 3‑D sphere with great‑circle arcs
-   and traveling heart particles
-══════════════════════════════════════════════════════════ */
+/* ─── math helpers ─────────────────────────────────── */
+const D2R = Math.PI / 180;
 
-interface Vec3 { x: number; y: number; z: number }
-interface City { lat: number; lng: number; name: string }
-interface Conn {
-  from: number; to: number
-  born: number          // ms since anim start when created
-  life: number          // total ms this connection lives
-  offset: number        // 0..1 fractional delay before heart departs
+function ll2v(lat: number, lng: number) {
+  const φ = lat * D2R, λ = lng * D2R;
+  return [Math.cos(φ) * Math.cos(λ), Math.sin(φ), Math.cos(φ) * Math.sin(λ)] as const;
 }
 
-const CITIES: City[] = [
-  { lat: 42.36, lng: -71.06, name: "Boston" },
-  { lat: 51.51, lng: -0.13,  name: "London" },
-  { lat: 28.61, lng:  77.21, name: "New Delhi" },
-  { lat:  9.06, lng:   7.50, name: "Abuja" },
-  { lat: -1.29, lng:  36.82, name: "Nairobi" },
-  { lat:-23.55, lng: -46.63, name: "São Paulo" },
-  { lat:  1.35, lng: 103.82, name: "Singapore" },
-  { lat: 48.86, lng:   2.35, name: "Paris" },
-  { lat: 35.68, lng: 139.65, name: "Tokyo" },
-  { lat:-33.92, lng:  18.42, name: "Cape Town" },
-  { lat: 30.04, lng:  31.24, name: "Cairo" },
-  { lat: 19.43, lng: -99.13, name: "Mexico City" },
+function rotY([x, y, z]: readonly number[], a: number) {
+  return [x * Math.cos(a) + z * Math.sin(a), y, -x * Math.sin(a) + z * Math.cos(a)] as const;
+}
+
+function slerp(A: readonly number[], B: readonly number[], t: number) {
+  const dot = Math.max(-1, Math.min(1, A[0]*B[0] + A[1]*B[1] + A[2]*B[2]));
+  const th  = Math.acos(dot);
+  if (th < 1e-6) return A;
+  const s = Math.sin(th);
+  const w1 = Math.sin((1 - t) * th) / s;
+  const w2 = Math.sin(t * th) / s;
+  return [w1*A[0]+w2*B[0], w1*A[1]+w2*B[1], w1*A[2]+w2*B[2]] as const;
+}
+
+/* ─── city list ─────────────────────────────────────── */
+const CITIES = [
+  { lat: 40.71, lng: -74.01 }, { lat: 51.51, lng:  -0.13 },
+  { lat: 48.86, lng:   2.35 }, { lat: 55.75, lng:  37.62 },
+  { lat: 28.61, lng:  77.21 }, { lat: 39.91, lng: 116.39 },
+  { lat: 35.68, lng: 139.65 }, { lat:  1.35, lng: 103.82 },
+  { lat:-33.87, lng: 151.21 }, { lat:-23.55, lng: -46.63 },
+  { lat: 19.43, lng: -99.13 }, { lat:  9.06, lng:   7.50 },
+  { lat: -1.29, lng:  36.82 }, { lat:-33.92, lng:  18.42 },
+  { lat: 30.04, lng:  31.24 }, { lat: 25.20, lng:  55.27 },
+  { lat: 41.01, lng:  28.97 }, { lat: 59.33, lng:  18.07 },
+  { lat: 37.57, lng: 126.98 }, { lat:-34.60, lng: -58.38 },
 ];
 
-const toRad = (d: number) => (d * Math.PI) / 180;
-
-function toVec(lat: number, lng: number): Vec3 {
-  const phi = toRad(lat), lam = toRad(lng);
-  return {
-    x: Math.cos(phi) * Math.cos(lam),
-    y: Math.sin(phi),
-    z: Math.cos(phi) * Math.sin(lam),
-  };
-}
-
-function rotY(v: Vec3, a: number): Vec3 {
-  return {
-    x: v.x * Math.cos(a) + v.z * Math.sin(a),
-    y: v.y,
-    z: -v.x * Math.sin(a) + v.z * Math.cos(a),
-  };
-}
-
-function proj(v: Vec3, cx: number, cy: number, R: number) {
-  return { sx: cx + v.x * R, sy: cy - v.y * R, vis: v.z > 0 };
-}
-
-function slerp(a: Vec3, b: Vec3, t: number): Vec3 {
-  const dot = Math.max(-1, Math.min(1, a.x*b.x + a.y*b.y + a.z*b.z));
-  const th  = Math.acos(dot);
-  if (th < 1e-4) return { x: a.x, y: a.y, z: a.z };
-  const s   = Math.sin(th);
-  const ta  = Math.sin((1 - t) * th) / s;
-  const tb  = Math.sin(t * th) / s;
-  return { x: ta*a.x + tb*b.x, y: ta*a.y + tb*b.y, z: ta*a.z + tb*b.z };
-}
-
+/* ─── globe canvas ──────────────────────────────────── */
 function GlobeCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -74,241 +49,332 @@ function GlobeCanvas() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    /* dimensions — read from parent section */
     let W = 0, H = 0;
-    const resize = () => {
-      W = canvas.width  = canvas.offsetWidth;
-      H = canvas.height = canvas.offsetHeight;
+    const measure = () => {
+      const p = canvas.parentElement;
+      W = (p ? p.offsetWidth  : 0) || window.innerWidth  || 900;
+      H = (p ? p.offsetHeight : 0) || window.innerHeight || 700;
+      canvas.width  = W;
+      canvas.height = H;
     };
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
+    const ro = new ResizeObserver(measure);
+    ro.observe(canvas.parentElement ?? canvas);
 
-    /* ── Static background stars ── */
-    const STARS = Array.from({ length: 260 }, () => ({
-      rx: Math.random(), ry: Math.random(),
-      r:  Math.random() * 1.1 + 0.25,
-      a:  Math.random() * 0.55 + 0.15,
-      ph: Math.random() * Math.PI * 2,
-    }));
+    /* country polygons fetched async */
+    type Pt = [number, number]; // [lng, lat]
+    const polys: Pt[][]     = [];
+    const centroids: number[][] = [];
 
-    /* ── Connection queue ── */
-    const conns: Conn[] = [];
-    let lastSpawn = -9999;
-    const spawnConn = (now: number) => {
-      const f = Math.floor(Math.random() * CITIES.length);
-      let t = Math.floor(Math.random() * CITIES.length);
-      while (t === f) t = Math.floor(Math.random() * CITIES.length);
-      conns.push({ from: f, to: t, born: now, life: 4500 + Math.random() * 2000, offset: 0.12 + Math.random() * 0.2 });
-    };
+    fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
+      .then(r => r.json())
+      .then((topo: {
+        transform: { scale: [number,number]; translate: [number,number] };
+        arcs: number[][][];
+        objects: { countries: { geometries: { type: string; arcs: unknown }[] } };
+      }) => {
+        const [sx, sy] = topo.transform.scale;
+        const [tx, ty] = topo.transform.translate;
 
-    const T0 = performance.now();
-    let aid: number;
+        const decoded: Pt[][] = topo.arcs.map(arc => {
+          let px = 0, py = 0;
+          return arc.map(([dx, dy]) => { px += dx; py += dy; return [px*sx+tx, py*sy+ty] as Pt; });
+        });
 
-    const frame = (now: number) => {
-      const E = now - T0;          // elapsed ms
-      const rot = E * 0.000135;    // globe rotation angle
-      ctx.clearRect(0, 0, W, H);
+        const ring = (idx: number): Pt[] =>
+          idx >= 0 ? decoded[idx] : [...decoded[~idx]].reverse() as Pt[];
 
-      const cx = W * 0.5;
-      const cy = H * 0.5;
-      const R  = Math.min(W, H) * 0.36;
+        const buildPoly = (ringIdxs: number[]): Pt[] =>
+          ringIdxs.flatMap((i: number) => ring(i).slice(0, -1));
 
-      /* ── Stars ── */
-      STARS.forEach(s => {
-        ctx.globalAlpha = Math.max(0, s.a + Math.sin(E * 0.0009 + s.ph) * 0.18);
-        ctx.beginPath();
-        ctx.arc(s.rx * W, s.ry * H, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = "#fff";
-        ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-
-      /* ── Atmosphere halo ── */
-      const atm = ctx.createRadialGradient(cx, cy, R * 0.88, cx, cy, R * 1.22);
-      atm.addColorStop(0,   "rgba(37,99,235,0)");
-      atm.addColorStop(0.35,"rgba(37,99,235,0.22)");
-      atm.addColorStop(1,   "rgba(30,64,175,0)");
-      ctx.beginPath(); ctx.arc(cx, cy, R * 1.22, 0, Math.PI * 2);
-      ctx.fillStyle = atm; ctx.fill();
-
-      /* ── Globe fill ── */
-      const gf = ctx.createRadialGradient(cx - R*0.28, cy - R*0.32, 0, cx, cy, R);
-      gf.addColorStop(0, "#1e3a6e");
-      gf.addColorStop(1, "#0b1221");
-      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.fillStyle = gf; ctx.fill();
-
-      /* ── Latitude grid ── */
-      ctx.lineWidth = 0.6;
-      for (let lat = -80; lat <= 80; lat += 20) {
-        ctx.strokeStyle = lat === 0 ? "rgba(147,197,253,0.22)" : "rgba(147,197,253,0.1)";
-        ctx.beginPath(); let go = false;
-        for (let lng = -180; lng <= 181; lng += 2) {
-          const v = rotY(toVec(lat, lng), rot);
-          const p = proj(v, cx, cy, R);
-          if (p.vis) { if (go) { ctx.lineTo(p.sx, p.sy); } else { ctx.moveTo(p.sx, p.sy); } go = true; }
-          else { if (go) { ctx.stroke(); ctx.beginPath(); go = false; } }
-        }
-        if (go) ctx.stroke();
-      }
-
-      /* ── Longitude grid ── */
-      ctx.lineWidth = 0.5;
-      ctx.strokeStyle = "rgba(147,197,253,0.08)";
-      for (let lng = -180; lng < 180; lng += 20) {
-        ctx.beginPath(); let go = false;
-        for (let lat = -88; lat <= 88; lat += 2) {
-          const v = rotY(toVec(lat, lng), rot);
-          const p = proj(v, cx, cy, R);
-          if (p.vis) { if (go) { ctx.lineTo(p.sx, p.sy); } else { ctx.moveTo(p.sx, p.sy); } go = true; }
-          else { if (go) { ctx.stroke(); ctx.beginPath(); go = false; } }
-        }
-        if (go) ctx.stroke();
-      }
-
-      /* ── Specular highlight ── */
-      const sp = ctx.createRadialGradient(cx - R*0.42, cy - R*0.42, 0, cx - R*0.2, cy - R*0.2, R*0.9);
-      sp.addColorStop(0, "rgba(255,255,255,0.09)");
-      sp.addColorStop(0.6,"rgba(255,255,255,0.02)");
-      sp.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.fillStyle = sp; ctx.fill();
-
-      /* ── Spawn connections ── */
-      if (E - lastSpawn > 1100 && conns.length < 4) {
-        spawnConn(E); lastSpawn = E;
-      }
-      for (let i = conns.length - 1; i >= 0; i--) {
-        if (E - conns[i].born > conns[i].life + 900) conns.splice(i, 1);
-      }
-
-      /* ── Draw arcs + hearts ── */
-      conns.forEach(conn => {
-        const age  = E - conn.born;
-        const t    = Math.min(1, age / conn.life);
-        const fade = age > conn.life ? Math.max(0, 1 - (age - conn.life) / 900) : 1;
-        if (fade <= 0) return;
-
-        const VA = toVec(CITIES[conn.from].lat, CITIES[conn.from].lng);
-        const VB = toVec(CITIES[conn.to].lat,   CITIES[conn.to].lng);
-        const SEGS = 80;
-        const drawTo = t;
-
-        const drawArc = (lw: number, alpha: number, color: string) => {
-          ctx.lineWidth = lw; let go = false;
-          for (let i = 0; i <= SEGS * drawTo; i++) {
-            const v = rotY(slerp(VA, VB, i / SEGS), rot);
-            const p = proj(v, cx, cy, R);
-            if (p.vis) { if (go) { ctx.lineTo(p.sx, p.sy); } else { ctx.beginPath(); ctx.moveTo(p.sx, p.sy); } go = true; }
-            else { if (go) { ctx.globalAlpha = fade * alpha; ctx.strokeStyle = color; ctx.stroke(); ctx.globalAlpha = 1; ctx.beginPath(); go = false; } }
-          }
-          if (go) { ctx.globalAlpha = fade * alpha; ctx.strokeStyle = color; ctx.stroke(); ctx.globalAlpha = 1; }
-        };
-
-        drawArc(5, 0.18, "#93C5FD");   // wide glow
-        drawArc(1.8, 0.9, "#60A5FA");  // core
-
-        /* ── Traveling heart ── */
-        const hDelay = conn.offset;
-        if (t > hDelay) {
-          const ht = Math.min(1, (t - hDelay) / (1 - hDelay));
-          const hv = rotY(slerp(VA, VB, ht), rot);
-          const hp = proj(hv, cx, cy, R);
-          if (hp.vis) {
-            /* glow halo */
-            const hg = ctx.createRadialGradient(hp.sx, hp.sy, 0, hp.sx, hp.sy, 16);
-            hg.addColorStop(0, "rgba(252,165,165,0.55)");
-            hg.addColorStop(1, "rgba(0,0,0,0)");
-            ctx.globalAlpha = fade;
-            ctx.beginPath(); ctx.arc(hp.sx, hp.sy, 16, 0, Math.PI * 2);
-            ctx.fillStyle = hg; ctx.fill();
-
-            /* heart symbol */
-            ctx.fillStyle = "#F87171";
-            ctx.font = "bold 13px serif";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("♥", hp.sx, hp.sy);
-            ctx.globalAlpha = 1;
-
-            /* arrival burst */
-            if (ht > 0.92) {
-              const boom = (ht - 0.92) / 0.08;
-              for (let i = 0; i < 8; i++) {
-                const ang = (i / 8) * Math.PI * 2;
-                const sr  = boom * 18;
-                ctx.globalAlpha = fade * (1 - boom) * 0.75;
-                ctx.beginPath(); ctx.arc(hp.sx + Math.cos(ang)*sr, hp.sy + Math.sin(ang)*sr, 2, 0, Math.PI * 2);
-                ctx.fillStyle = "#FCA5A5"; ctx.fill();
-              }
-              ctx.globalAlpha = 1;
+        for (const g of topo.objects.countries.geometries) {
+          if (g.type === "Polygon") {
+            const rings = g.arcs as number[][];
+            polys.push(buildPoly(rings[0]));
+          } else if (g.type === "MultiPolygon") {
+            for (const poly of g.arcs as number[][][]) {
+              polys.push(buildPoly(poly[0]));
             }
           }
         }
+
+        /* centroid per polygon for back-face culling */
+        for (const p of polys) {
+          let sx2 = 0, sy2 = 0, sz = 0;
+          for (const [lng, lat] of p) { const v = ll2v(lat, lng); sx2 += v[0]; sy2 += v[1]; sz += v[2]; }
+          const n = p.length || 1;
+          const l = Math.hypot(sx2, sy2, sz) || 1;
+          centroids.push([sx2/(n*l), sy2/(n*l), sz/(n*l)]);
+        }
+      })
+      .catch(() => {});
+
+    /* starfield */
+    const STARS = Array.from({ length: 280 }, () => ({
+      rx: Math.random(), ry: Math.random(),
+      r: Math.random() * 1.1 + 0.2,
+      a: Math.random() * 0.55 + 0.15,
+      ph: Math.random() * Math.PI * 2,
+    }));
+
+    /* arcs */
+    interface Arc {
+      A: readonly number[]; B: readonly number[];
+      born: number; life: number; delay: number;
+    }
+    const arcs: Arc[] = [];
+    let lastSpawn = -9999;
+
+    const spawn = (born: number) => {
+      const a = Math.floor(Math.random() * CITIES.length);
+      let b = Math.floor(Math.random() * CITIES.length);
+      while (b === a) b = Math.floor(Math.random() * CITIES.length);
+      arcs.push({
+        A: ll2v(CITIES[a].lat, CITIES[a].lng),
+        B: ll2v(CITIES[b].lat, CITIES[b].lng),
+        born, life: 3000 + Math.random() * 2000, delay: 0.08 + Math.random() * 0.12,
       });
-
-      /* ── City dots ── */
-      CITIES.forEach((city) => {
-        const v = rotY(toVec(city.lat, city.lng), rot);
-        const p = proj(v, cx, cy, R);
-        if (!p.vis) return;
-
-        /* pulse ring — each city has its own phase */
-        const ph = (E * 0.0009 + city.lat * 0.047 + city.lng * 0.031) % 1;
-        ctx.globalAlpha = (1 - ph) * 0.55;
-        ctx.beginPath(); ctx.arc(p.sx, p.sy, ph * 14, 0, Math.PI * 2);
-        ctx.strokeStyle = "#60A5FA"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.globalAlpha = 1;
-
-        /* dot glow */
-        const dg = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, 9);
-        dg.addColorStop(0, "rgba(147,197,253,0.6)");
-        dg.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.beginPath(); ctx.arc(p.sx, p.sy, 9, 0, Math.PI * 2);
-        ctx.fillStyle = dg; ctx.fill();
-
-        /* core */
-        ctx.beginPath(); ctx.arc(p.sx, p.sy, 2.8, 0, Math.PI * 2);
-        ctx.fillStyle = "#E0F2FE"; ctx.fill();
-      });
-
-      aid = requestAnimationFrame(frame);
     };
 
-    /* stagger initial connections */
-    const t0 = T0;
-    setTimeout(() => spawnConn(performance.now() - t0),  200);
-    setTimeout(() => spawnConn(performance.now() - t0), 1400);
-    setTimeout(() => spawnConn(performance.now() - t0), 2800);
+    /* animation */
+    let aid = 0;
+    const T0 = performance.now();
+    const SEGS = 80;
 
-    aid = requestAnimationFrame(frame);
+    const tick = (now: number) => {
+      try {
+        const E   = now - T0;
+        const rot = E * 0.0009; // one full spin ≈ 7 seconds — obviously visible
+
+        if (W < 10) { aid = requestAnimationFrame(tick); return; }
+
+        const cx = W / 2, cy = H / 2;
+        const R  = Math.min(W, H) * 0.39;
+
+        ctx.clearRect(0, 0, W, H);
+
+        /* — stars — */
+        for (const s of STARS) {
+          ctx.globalAlpha = Math.max(0, s.a + Math.sin(E * 0.001 + s.ph) * 0.15);
+          ctx.beginPath(); ctx.arc(s.rx * W, s.ry * H, s.r, 0, Math.PI * 2);
+          ctx.fillStyle = "#fff"; ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        /* — atmosphere — */
+        const atm = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, R * 1.3);
+        atm.addColorStop(0,    "rgba(59,130,246,0)");
+        atm.addColorStop(0.35, "rgba(59,130,246,0.20)");
+        atm.addColorStop(1,    "rgba(30,64,175,0)");
+        ctx.beginPath(); ctx.arc(cx, cy, R * 1.3, 0, Math.PI * 2);
+        ctx.fillStyle = atm; ctx.fill();
+
+        /* — globe fill — */
+        const gf = ctx.createRadialGradient(cx - R*0.28, cy - R*0.3, 0, cx, cy, R);
+        gf.addColorStop(0, "#16335a"); gf.addColorStop(1, "#060d1e");
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.fillStyle = gf; ctx.fill();
+
+        /* — clip everything to globe circle — */
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx, cy, R - 0.5, 0, Math.PI * 2); ctx.clip();
+
+        /* — country fills & borders — */
+        for (let pi = 0; pi < polys.length; pi++) {
+          const p = polys[pi];
+          if (!p.length) continue;
+          const c = centroids[pi];
+          if (!c) continue;
+          const rc = rotY(c, rot);
+          if (rc[2] < -0.1) continue; // back face
+
+          ctx.beginPath();
+          let first = true;
+          for (const [lng, lat] of p) {
+            const v = rotY(ll2v(lat, lng), rot);
+            if (v[2] < 0) { first = true; continue; }
+            const sx = cx + v[0] * R, sy = cy - v[1] * R;
+            if (first) { ctx.moveTo(sx, sy); first = false; } else ctx.lineTo(sx, sy);
+          }
+          ctx.closePath();
+          const vis = Math.max(0.2, rc[2]);
+          ctx.fillStyle   = `rgba(22,64,120,${(vis * 0.6).toFixed(2)})`;  ctx.fill();
+          ctx.strokeStyle = `rgba(147,197,253,${(vis * 0.8).toFixed(2)})`; ctx.lineWidth = 0.5; ctx.stroke();
+        }
+
+        /* — lat / meridian grid — */
+        ctx.lineWidth = 0.4;
+        for (const lat of [-66.5, -23.5, 0, 23.5, 66.5]) {
+          ctx.strokeStyle = lat === 0 ? "rgba(147,197,253,0.22)" : "rgba(147,197,253,0.09)";
+          ctx.beginPath(); let go = false;
+          for (let lng = -180; lng <= 181; lng += 3) {
+            const v = rotY(ll2v(lat, lng), rot);
+            if (v[2] > 0) { const sx=cx+v[0]*R,sy=cy-v[1]*R; if(!go){ctx.moveTo(sx,sy);}else{ctx.lineTo(sx,sy);} go=true; }
+            else { if (go) { ctx.stroke(); ctx.beginPath(); go=false; } }
+          }
+          if (go) ctx.stroke();
+        }
+        ctx.strokeStyle = "rgba(147,197,253,0.07)";
+        for (let lng = -150; lng < 180; lng += 30) {
+          ctx.beginPath(); let go = false;
+          for (let lat = -88; lat <= 88; lat += 3) {
+            const v = rotY(ll2v(lat, lng), rot);
+            if (v[2] > 0) { const sx=cx+v[0]*R,sy=cy-v[1]*R; if(!go){ctx.moveTo(sx,sy);}else{ctx.lineTo(sx,sy);} go=true; }
+            else { if (go) { ctx.stroke(); ctx.beginPath(); go=false; } }
+          }
+          if (go) ctx.stroke();
+        }
+
+        /* — spawn / prune arcs — */
+        if (E - lastSpawn > 420 && arcs.length < 10) { spawn(E); lastSpawn = E; }
+        for (let i = arcs.length - 1; i >= 0; i--) {
+          if (E - arcs[i].born > arcs[i].life + 700) arcs.splice(i, 1);
+        }
+
+        /* — draw arcs with elevated curve + heart heads — */
+        for (const arc of arcs) {
+          const age  = E - arc.born;
+          if (age < 0) continue;
+          const t    = Math.min(1, age / arc.life);
+          const fade = age > arc.life ? Math.max(0, 1 - (age - arc.life) / 700) : 1;
+          if (fade <= 0) continue;
+
+          /* draw trail (glow + core) */
+          for (let pass = 0; pass < 2; pass++) {
+            ctx.beginPath(); let go = false;
+            for (let i = 0; i <= Math.floor(SEGS * t); i++) {
+              const s = i / SEGS;
+              const base = slerp(arc.A, arc.B, s);
+              /* lift the arc above the sphere — peaks 35% at midpoint */
+              const lift = 1 + 0.35 * Math.sin(s * Math.PI);
+              const v = rotY([base[0]*lift, base[1]*lift, base[2]*lift], rot);
+              /* visibility: lifted points can be in front even if base is behind */
+              if (v[2] > -0.05) {
+                const px = cx + v[0] * R, py = cy - v[1] * R;
+                if (!go) { ctx.moveTo(px, py); go = true; } else ctx.lineTo(px, py);
+              } else {
+                if (go) { ctx.stroke(); ctx.beginPath(); go = false; }
+              }
+            }
+            if (go) ctx.stroke();
+            if (pass === 0) {
+              ctx.lineWidth = 7; ctx.strokeStyle = `rgba(248,113,113,${(fade * 0.22).toFixed(2)})`;
+            } else {
+              ctx.lineWidth = 2.2; ctx.globalAlpha = fade * 0.95;
+              ctx.strokeStyle = "#F87171"; ctx.globalAlpha = 1;
+            }
+          }
+
+          /* heart head */
+          if (t > arc.delay) {
+            const ht = Math.min(1, (t - arc.delay) / (1 - arc.delay));
+            const base = slerp(arc.A, arc.B, ht);
+            const lift = 1 + 0.35 * Math.sin(ht * Math.PI);
+            const v = rotY([base[0]*lift, base[1]*lift, base[2]*lift], rot);
+            if (v[2] > -0.1) {
+              const hx = cx + v[0] * R, hy = cy - v[1] * R;
+
+              /* glow halo */
+              const hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 28);
+              hg.addColorStop(0, `rgba(255,80,80,${(fade * 0.7).toFixed(2)})`);
+              hg.addColorStop(1,  "rgba(0,0,0,0)");
+              ctx.globalAlpha = fade;
+              ctx.beginPath(); ctx.arc(hx, hy, 28, 0, Math.PI * 2);
+              ctx.fillStyle = hg; ctx.fill();
+
+              /* heart symbol — large and red */
+              ctx.font = "22px serif";
+              ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.fillStyle = "#FF3B3B";
+              ctx.fillText("♥", hx, hy);
+              ctx.globalAlpha = 1;
+
+              /* arrival burst */
+              if (ht > 0.88) {
+                const p2 = (ht - 0.88) / 0.12;
+                for (let i = 0; i < 12; i++) {
+                  const ang = (i / 12) * Math.PI * 2;
+                  const sr  = p2 * 28;
+                  ctx.globalAlpha = fade * (1 - p2) * 0.85;
+                  ctx.beginPath();
+                  ctx.arc(hx + Math.cos(ang)*sr, hy + Math.sin(ang)*sr, 2.5, 0, Math.PI * 2);
+                  ctx.fillStyle = "#FCA5A5"; ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+              }
+            }
+          }
+        }
+
+        /* — city dots — */
+        for (const city of CITIES) {
+          const v = rotY(ll2v(city.lat, city.lng), rot);
+          if (v[2] <= 0) continue;
+          const px = cx + v[0] * R, py = cy - v[1] * R;
+          const ph = (E * 0.0012 + city.lat * 0.05 + city.lng * 0.03) % 1;
+          ctx.globalAlpha = (1 - ph) * 0.65 * v[2];
+          ctx.beginPath(); ctx.arc(px, py, ph * 14, 0, Math.PI * 2);
+          ctx.strokeStyle = "#60A5FA"; ctx.lineWidth = 1; ctx.stroke();
+          ctx.globalAlpha = v[2];
+          ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2);
+          ctx.fillStyle = "#BAE6FD"; ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+
+        ctx.restore(); /* end clip */
+
+        /* rim */
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(96,165,250,0.18)"; ctx.lineWidth = 1.2; ctx.stroke();
+
+        /* specular sheen */
+        const sp = ctx.createRadialGradient(cx-R*0.38, cy-R*0.38, 0, cx-R*0.1, cy-R*0.1, R*0.88);
+        sp.addColorStop(0, "rgba(255,255,255,0.10)");
+        sp.addColorStop(0.6, "rgba(255,255,255,0.015)");
+        sp.addColorStop(1,   "rgba(0,0,0,0)");
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.fillStyle = sp; ctx.fill();
+
+      } catch {
+        /* never let an error kill the animation loop */
+      }
+      aid = requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(() => {
+      measure();
+      /* pre-seed arcs spread around the timeline */
+      for (let i = 0; i < 6; i++) spawn(i * 500);
+      aid = requestAnimationFrame(tick);
+    });
+
     return () => { cancelAnimationFrame(aid); ro.disconnect(); };
   }, []);
 
-  return <canvas ref={ref} className="absolute inset-0 w-full h-full" />;
+  return (
+    <canvas ref={ref}
+      style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%" }} />
+  );
 }
 
-/* ══════════════════════════════════════════════════════════
-   PAGE DATA (same as before)
-══════════════════════════════════════════════════════════ */
-
+/* ─── page data ─────────────────────────────────────── */
 interface Member {
   name: string; email: string; phone: string;
   role: string; initial: string; color: string;
   isFounder?: boolean; bio?: string;
 }
 
-const team: Member[] = [
-  { name: "Jia Ginjupalli",     email: "ginjupalli.jia05@bloomfield.org",    phone: "947-955-5790", role: "Founder & Director", initial: "J", color: "#1D4ED8", isFounder: true,
-    bio: "I'm Jia! Aspiring to be a Cardiothoracic Surgeon, I hope to aid in raising the standards of healthcare around the world, trying to make a difference one lecture, one event, and one bp machine at a time." },
-  { name: "Hansini Dhulipalla", email: "dhulipalla.hansini41@bloomfield.org", phone: "248-495-1389", role: "Co-Founder",        initial: "H", color: "#0891B2" },
-  { name: "Divya Shah",         email: "shah.divya28@bloomfield.org",         phone: "248-410-5206", role: "Team Member",       initial: "D", color: "#7C3AED" },
-  { name: "Caden Gao",          email: "gao.xiaolin94@bloomfield.org",        phone: "248-410-9723", role: "Team Member",       initial: "C", color: "#059669" },
-  { name: "Luka Lev",           email: "lev.luka32@bloomfield.org",           phone: "248-892-0367", role: "Team Member",       initial: "L", color: "#DC2626" },
-  { name: "Dev Shah",           email: "shah.dev27@bloomfield.org",           phone: "248-392-0562", role: "Team Member",       initial: "D", color: "#D97706" },
+const TEAM: Member[] = [
+  { name:"Jia Ginjupalli", email:"hearttalks.initiative@gmail.com", phone:"947-955-5790",
+    role:"Founder & Director", initial:"J", color:"#1D4ED8", isFounder:true,
+    bio:"I'm Jia! Aspiring to be a Cardiothoracic Surgeon, I hope to aid in raising the standards of healthcare around the world, trying to make a difference one lecture, one event, and one bp machine at a time." },
+  { name:"Hansini Dhulipalla", email:"dhulipalla.hansini41@bloomfield.org", phone:"248-495-1389", role:"Co-Founder", initial:"H", color:"#0891B2" },
+  { name:"Divya Shah",         email:"shah.divya28@bloomfield.org",         phone:"248-410-5206", role:"Co-Founder", initial:"D", color:"#7C3AED" },
+  { name:"Caden Gao",          email:"gao.xiaolin94@bloomfield.org",        phone:"248-410-9723", role:"Co-Founder", initial:"C", color:"#059669" },
+  { name:"Luka Lev",           email:"lev.luka32@bloomfield.org",           phone:"248-892-0367", role:"Co-Founder", initial:"L", color:"#DC2626" },
+  { name:"Dev Shah",           email:"shah.dev27@bloomfield.org",           phone:"248-392-0562", role:"Co-Founder", initial:"D", color:"#D97706" },
 ];
 
-/* ── Scroll reveal hook ── */
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null);
   const [v, setV] = useState(false);
@@ -323,81 +389,64 @@ function useReveal() {
   return { ref, v };
 }
 
-/* ── Contact row ── */
-function MemberRow({ m, index }: { m: Member; index: number }) {
+function MemberRow({ m, i }: { m: Member; i: number }) {
   const { ref, v } = useReveal();
   return (
-    <div
-      ref={ref}
-      className="contact-card flex items-center gap-4 py-4 px-5 rounded-xl"
-      style={{
-        background: "var(--white)",
-        border: "1px solid var(--gray-200)",
-        opacity: v ? 1 : 0,
-        transform: v ? "translateY(0)" : "translateY(10px)",
-        transition: `opacity 0.45s ease ${index * 0.06}s, transform 0.45s ease ${index * 0.06}s`,
-      }}
-    >
-      <div
-        className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
-        style={{ background: m.color, boxShadow: `0 2px 8px ${m.color}40` }}
-      >
-        {m.initial}
-      </div>
+    <div ref={ref} className="flex items-center gap-4 py-4 px-5 rounded-xl"
+      style={{ background:"var(--white)", border:"1px solid var(--gray-200)",
+        opacity:v?1:0, transform:v?"translateY(0)":"translateY(10px)",
+        transition:`opacity 0.45s ease ${i*0.06}s, transform 0.45s ease ${i*0.06}s` }}>
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+        style={{ background:m.color, boxShadow:`0 2px 8px ${m.color}40` }}>{m.initial}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm" style={{ color: "var(--gray-900)" }}>{m.name}</span>
+          <span className="font-semibold text-sm" style={{ color:"var(--gray-900)" }}>{m.name}</span>
           {m.isFounder && (
             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-              style={{ background: "var(--blue-50)", color: "var(--blue-700)", border: "1px solid var(--blue-200)" }}>
+              style={{ background:"var(--blue-50)", color:"var(--blue-700)", border:"1px solid var(--blue-200)" }}>
               Founder
             </span>
           )}
         </div>
-        <span className="text-xs" style={{ color: "var(--gray-400)" }}>{m.role}</span>
+        <span className="text-xs" style={{ color:"var(--gray-400)" }}>{m.role}</span>
       </div>
       <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
-        <a href={`mailto:${m.email}`} className="text-xs hover:underline" style={{ color: "var(--gray-600)" }}>{m.email}</a>
-        <span style={{ color: "var(--gray-200)" }}>·</span>
-        <a href={`tel:${m.phone.replace(/-/g,"")}`} className="text-xs hover:text-gray-900" style={{ color: "var(--gray-500)" }}>{m.phone}</a>
+        <a href={`mailto:${m.email}`} className="text-xs hover:underline" style={{ color:"var(--gray-600)" }}>{m.email}</a>
+        <span style={{ color:"var(--gray-200)" }}>·</span>
+        <a href={`tel:${m.phone.replace(/-/g,"")}`} className="text-xs" style={{ color:"var(--gray-500)" }}>{m.phone}</a>
       </div>
       <div className="flex sm:hidden flex-shrink-0">
-        <a href={`mailto:${m.email}`} className="text-xs" style={{ color: "var(--blue-600)" }}>Email ↗</a>
+        <a href={`mailto:${m.email}`} className="text-xs" style={{ color:"var(--blue-600)" }}>Email ↗</a>
       </div>
     </div>
   );
 }
 
-/* ── Founder card ── */
 function FounderCard() {
   const { ref, v } = useReveal();
-  const f = team[0];
+  const f = TEAM[0];
   return (
-    <div ref={ref} style={{ opacity: v ? 1 : 0, transform: v ? "translateY(0)" : "translateY(16px)", transition: "opacity 0.6s ease, transform 0.6s ease" }}>
-      <div className="rounded-xl p-8 md:p-10" style={{ background: "var(--blue-700)", border: "1px solid var(--blue-800)" }}>
+    <div ref={ref} style={{ opacity:v?1:0, transform:v?"translateY(0)":"translateY(16px)", transition:"opacity 0.6s ease, transform 0.6s ease" }}>
+      <div className="rounded-xl p-8 md:p-10" style={{ background:"var(--blue-700)", border:"1px solid var(--blue-800)" }}>
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-shrink-0">
             <div className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold text-white"
-              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", animation: "heartbeat 2.5s ease-in-out infinite" }}>
-              J
-            </div>
+              style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.2)", animation:"heartbeat 2.5s ease-in-out infinite" }}>J</div>
           </div>
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h3 className="font-bold text-white text-lg" style={{ fontFamily: "Georgia, serif" }}>{f.name}</h3>
-            </div>
-            <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>Founder · HeartTalks</p>
-            <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.55)" }}>Aspiring Cardiothoracic Surgeon</p>
-            <blockquote className="border-l-2 pl-4 mb-6" style={{ borderColor: "rgba(255,255,255,0.3)" }}>
+            <h3 className="font-bold text-white text-lg mb-1" style={{ fontFamily:"Georgia,serif" }}>{f.name}</h3>
+            <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color:"rgba(255,255,255,0.5)" }}>Founder · HeartTalks</p>
+            <p className="text-sm mb-6" style={{ color:"rgba(255,255,255,0.55)" }}>Aspiring Cardiothoracic Surgeon</p>
+            <blockquote className="border-l-2 pl-4 mb-6" style={{ borderColor:"rgba(255,255,255,0.3)" }}>
               <p className="text-white text-base leading-relaxed italic">&ldquo;{f.bio}&rdquo;</p>
             </blockquote>
             <div className="flex flex-wrap gap-3">
               <a href={`mailto:${f.email}`} className="text-xs font-medium px-3 py-1.5 rounded-md"
-                style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                style={{ background:"rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.9)", border:"1px solid rgba(255,255,255,0.2)" }}>
                 ✉ {f.email}
               </a>
               <a href={`tel:${f.phone.replace(/-/g,"")}`} className="text-xs font-medium px-3 py-1.5 rounded-md"
-                style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                style={{ background:"rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.9)", border:"1px solid rgba(255,255,255,0.2)" }}>
                 {f.phone}
               </a>
             </div>
@@ -408,202 +457,118 @@ function FounderCard() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════
-   PAGE
-══════════════════════════════════════════════════════════ */
+/* ─── page ───────────────────────────────────────────── */
 export default function HeartsAcrossBordersPage() {
   return (
-    <main style={{ background: "var(--white)" }}>
+    <main style={{ background:"var(--white)" }}>
 
-      {/* ── HERO — full‑viewport globe animation ── */}
-      <section
-        className="relative overflow-hidden"
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(160deg, #060d1f 0%, #0b1630 45%, #0f2050 100%)",
-        }}
-      >
-        {/* Canvas fills the entire hero */}
+      {/* HERO */}
+      <section className="relative overflow-hidden"
+        style={{ minHeight:"100vh", background:"linear-gradient(160deg,#040810 0%,#08142a 60%,#0a1d42 100%)" }}>
+
         <GlobeCanvas />
 
-        {/* Subtle vignette around edges */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, transparent 55%, rgba(6,13,31,0.7) 100%)",
-          }}
-        />
+        {/* vignette */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background:"radial-gradient(ellipse at center,transparent 42%,rgba(4,8,16,0.60) 100%)" }} />
 
-        {/* Text — sits over globe, centered */}
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
-          style={{ paddingTop: "64px" }}
-        >
-          <p
-            className="text-xs font-semibold tracking-widest uppercase mb-4"
-            style={{
-              color: "rgba(147,197,253,0.8)",
-              opacity: 0,
-              animation: "revealUp 0.6s ease forwards",
-              animationDelay: "0.3s",
-            }}
-          >
+        {/* text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
+          style={{ paddingTop:"64px" }}>
+          <p className="text-xs font-semibold tracking-widest uppercase mb-4"
+            style={{ color:"rgba(147,197,253,0.8)", opacity:0,
+              animation:"revealUp 0.6s ease forwards", animationDelay:"0.3s" }}>
             Flagship Initiative
           </p>
-
-          <h1
-            className="font-bold mb-5"
-            style={{
-              fontFamily: "Georgia, serif",
-              fontSize: "clamp(36px, 6vw, 72px)",
-              lineHeight: 1.1,
-              letterSpacing: "-0.02em",
-              color: "#ffffff",
-              textShadow: "0 4px 32px rgba(0,0,0,0.6)",
-              opacity: 0,
-              animation: "revealUp 0.7s ease forwards",
-              animationDelay: "0.5s",
-            }}
-          >
+          <h1 className="font-bold mb-5"
+            style={{ fontFamily:"Georgia,serif", fontSize:"clamp(36px,6vw,72px)",
+              lineHeight:1.1, letterSpacing:"-0.02em", color:"#fff",
+              textShadow:"0 4px 40px rgba(0,0,0,0.8)",
+              opacity:0, animation:"revealUp 0.7s ease forwards", animationDelay:"0.5s" }}>
             Hearts Across Borders
           </h1>
-
-          <p
-            className="max-w-lg mx-auto text-base leading-relaxed mb-8"
-            style={{
-              color: "rgba(191,219,254,0.85)",
-              opacity: 0,
-              animation: "revealUp 0.7s ease forwards",
-              animationDelay: "0.75s",
-            }}
-          >
+          <p className="max-w-lg mx-auto text-base leading-relaxed mb-8"
+            style={{ color:"rgba(191,219,254,0.85)", opacity:0,
+              animation:"revealUp 0.7s ease forwards", animationDelay:"0.75s" }}>
             Collecting vital cardiovascular equipment and delivering it to hospitals
             serving marginalized communities — across borders, across the world.
           </p>
-
-          {/* Live counter chips */}
-          <div
-            className="flex flex-wrap gap-3 justify-center mb-12"
-            style={{
-              opacity: 0,
-              animation: "revealUp 0.6s ease forwards",
-              animationDelay: "1s",
-            }}
-          >
-            {[
-              { label: "12 Cities", icon: "🌍" },
-              { label: "6-Member Team", icon: "❤️" },
-              { label: "Active Now", icon: "⚡" },
-            ].map((chip) => (
-              <span
-                key={chip.label}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium"
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  color: "rgba(191,219,254,0.9)",
-                  border: "1px solid rgba(147,197,253,0.2)",
-                  backdropFilter: "blur(6px)",
-                }}
-              >
-                <span>{chip.icon}</span>
-                {chip.label}
+          <div className="flex flex-wrap gap-3 justify-center mb-12"
+            style={{ opacity:0, animation:"revealUp 0.6s ease forwards", animationDelay:"1s" }}>
+            {[["🌍","Global Reach"],["❤️","6-Member Team"],["⚡","Active Now"]].map(([icon,label]) => (
+              <span key={label} className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium"
+                style={{ background:"rgba(255,255,255,0.08)", color:"rgba(191,219,254,0.9)",
+                  border:"1px solid rgba(147,197,253,0.2)", backdropFilter:"blur(6px)" }}>
+                {icon} {label}
               </span>
             ))}
           </div>
-
-          {/* Scroll cue */}
-          <div
-            style={{
-              opacity: 0,
-              animation: "fadeIn 1s ease forwards",
-              animationDelay: "1.4s",
-            }}
-          >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 22 22"
-              fill="none"
-              style={{ color: "rgba(147,197,253,0.5)", animation: "scrollBounce 1.8s ease-in-out infinite" }}
-            >
-              <path d="M5 9l6 6 6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <div style={{ opacity:0, animation:"fadeIn 1s ease forwards", animationDelay:"1.4s" }}>
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none"
+              style={{ color:"rgba(147,197,253,0.5)", animation:"scrollBounce 1.8s ease-in-out infinite" }}>
+              <path d="M5 9l6 6 6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
         </div>
 
-        {/* Fade to white at the bottom */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none"
-          style={{ background: "linear-gradient(to bottom, transparent, var(--white))" }}
-        />
+        <div className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none"
+          style={{ background:"linear-gradient(to bottom,transparent,var(--white))" }}/>
       </section>
 
-      {/* ── About initiative ── */}
-      <section className="py-16" style={{ background: "var(--white)" }}>
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="max-w-3xl">
-            <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--gray-900)" }}>About the Initiative</h2>
-            <div className="space-y-3 text-base leading-relaxed" style={{ color: "var(--gray-600)" }}>
-              <p>
-                We are currently implementing a Heart Health Equipment Donation Initiative,
-                called <strong style={{ color: "var(--gray-800)" }}>&ldquo;HeartTalks: Hearts Across Borders&rdquo;</strong>,
-                which involves the collection of vital cardiovascular or rehabilitation equipment.
-              </p>
-              <p>
-                This equipment will be distributed to hospitals and health organizations that serve
-                marginalized communities within the local and international environment —
-                bridging healthcare gaps one donation at a time.
-              </p>
-            </div>
-          </div>
+      {/* About */}
+      <section className="py-16"><div className="max-w-6xl mx-auto px-6"><div className="max-w-3xl">
+        <h2 className="text-xl font-semibold mb-4" style={{ color:"var(--gray-900)" }}>About the Initiative</h2>
+        <div className="space-y-3 text-base leading-relaxed" style={{ color:"var(--gray-600)" }}>
+          <p>We are currently implementing a Heart Health Equipment Donation Initiative,
+            called <strong style={{ color:"var(--gray-800)" }}>&ldquo;HeartTalks: Hearts Across Borders&rdquo;</strong>,
+            which involves the collection of vital cardiovascular or rehabilitation equipment.</p>
+          <p>This equipment will be distributed to hospitals and health organizations that serve
+            marginalized communities within the local and international environment —
+            bridging healthcare gaps one donation at a time.</p>
         </div>
-      </section>
+      </div></div></section>
 
-      <hr className="section-divider" />
+      <hr className="section-divider"/>
 
-      {/* ── Team ── */}
-      <section className="py-16" style={{ background: "var(--gray-50)" }}>
+      {/* Team */}
+      <section className="py-16" style={{ background:"var(--gray-50)" }}>
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-1" style={{ color: "var(--gray-900)" }}>Team Contacts</h2>
-            <p className="text-sm" style={{ color: "var(--gray-500)" }}>{team.length} members · Bloomfield, Michigan</p>
+            <h2 className="text-xl font-semibold mb-1" style={{ color:"var(--gray-900)" }}>Team Contacts</h2>
+            <p className="text-sm" style={{ color:"var(--gray-500)" }}>{TEAM.length} members · Bloomfield, Michigan</p>
           </div>
           <div className="flex flex-col gap-3">
-            {team.map((m, i) => <MemberRow key={i} m={m} index={i} />)}
+            {TEAM.map((m,idx) => <MemberRow key={idx} m={m} i={idx}/>)}
           </div>
         </div>
       </section>
 
-      <hr className="section-divider" />
+      <hr className="section-divider"/>
 
-      {/* ── Founder bio (bottom) ── */}
-      <section className="py-16" style={{ background: "var(--white)" }}>
+      {/* Founder */}
+      <section className="py-16">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-8">
-            <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--blue-600)" }}>
-              Founder&apos;s Message
-            </p>
-            <h2 className="text-xl font-semibold" style={{ color: "var(--gray-900)" }}>
-              From the Desk of Jia Ginjupalli
-            </h2>
+            <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color:"var(--blue-600)" }}>Founder&apos;s Message</p>
+            <h2 className="text-xl font-semibold" style={{ color:"var(--gray-900)" }}>From the Desk of Jia Ginjupalli</h2>
           </div>
-          <div className="max-w-3xl"><FounderCard /></div>
+          <div className="max-w-3xl"><FounderCard/></div>
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer style={{ background: "var(--gray-900)" }}>
+      {/* Footer */}
+      <footer style={{ background:"var(--gray-900)" }}>
         <div className="max-w-6xl mx-auto px-6 py-10">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-sm font-semibold text-white" style={{ fontFamily: "Georgia, serif" }}>
-              HeartTalks <span style={{ color: "var(--gray-600)", fontWeight: 400 }}>· Hearts Across Borders</span>
+            <span className="text-sm font-semibold text-white" style={{ fontFamily:"Georgia,serif" }}>
+              HeartTalks <span style={{ color:"var(--gray-600)", fontWeight:400 }}>· Hearts Across Borders</span>
             </span>
-            <Link href="/" className="text-sm transition-colors duration-150 hover:text-white" style={{ color: "var(--gray-500)" }}>
+            <Link href="/" className="text-sm transition-colors hover:text-white" style={{ color:"var(--gray-500)" }}>
               ← Back to Home
             </Link>
           </div>
-          <div className="mt-6 pt-6 text-xs text-center" style={{ borderTop: "1px solid rgba(255,255,255,0.07)", color: "var(--gray-600)" }}>
+          <div className="mt-6 pt-6 text-xs text-center"
+            style={{ borderTop:"1px solid rgba(255,255,255,0.07)", color:"var(--gray-600)" }}>
             © {new Date().getFullYear()} HeartTalks. All rights reserved.
           </div>
         </div>

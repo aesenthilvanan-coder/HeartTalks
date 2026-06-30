@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 
 const members = [
-  { name: "Aaryan Senthilvanan", role: "Co-Founder" },
-  { name: "Team Member 2",       role: "Co-Founder" },
-  { name: "Team Member 3",       role: "Co-Founder" },
-  { name: "Jia Ginjupalli",      role: "Member" },
+  { name: "Jia Ginjupalli",     role: "Founder & Director" },
+  { name: "Hansini Dhulipalla", role: "Co-Founder" },
+  { name: "Divya Shah",         role: "Co-Founder" },
+  { name: "Caden Gao",          role: "Co-Founder" },
+  { name: "Luka Lev",           role: "Co-Founder" },
+  { name: "Dev Shah",           role: "Co-Founder" },
 ];
 
 function MemberCard({ member, index }: { member: (typeof members)[0]; index: number }) {
@@ -47,8 +49,8 @@ function MemberCard({ member, index }: { member: (typeof members)[0]; index: num
       <span
         className="text-xs font-semibold tracking-wide uppercase px-3 py-1 rounded-full"
         style={{
-          background: member.role === "Co-Founder" ? "var(--blue-100)" : "var(--gray-100)",
-          color:      member.role === "Co-Founder" ? "var(--blue-700)" : "var(--gray-600)",
+          background: member.role === "Co-Founder" ? "var(--blue-100)" : member.role === "Founder & Director" ? "#EFF6FF" : "var(--gray-100)",
+          color:      member.role === "Co-Founder" ? "var(--blue-700)" : member.role === "Founder & Director" ? "#1D4ED8" : "var(--gray-600)",
         }}
       >
         {member.role}
