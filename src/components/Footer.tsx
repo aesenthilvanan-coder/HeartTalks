@@ -54,11 +54,11 @@ export default function Footer() {
             <ul className="space-y-2.5">
               <li>
                 <a
-                  href="mailto:ginjupalli.jia05@bloomfield.org"
+                  href="mailto:hearttalks.initiative@gmail.com"
                   className="text-sm transition-colors duration-150 hover:text-white"
                   style={{ color: "var(--gray-400)" }}
                 >
-                  ginjupalli.jia05@bloomfield.org
+                  hearttalks.initiative@gmail.com
                 </a>
               </li>
               <li>
